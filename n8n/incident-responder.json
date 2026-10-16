@@ -423,7 +423,7 @@
         "needsFallback": true,
         "options": {
           "systemMessage": "You are the Root-cause agent. Make the smallest correct fix and open one PR. Use exactly these tool calls when possible: get_file_contents, create_branch, create_or_update_file, create_pull_request. Never merge or touch another file. Keep responses short. Return ONLY this JSON after the PR is created: {\"root_cause\":\"...\",\"fix_summary\":\"...\",\"pr_url\":\"https://github.com/...\",\"pr_number\":0,\"branch\":\"fix/...\",\"rollback_sha\":\"<last good commit full sha>\",\"risk\":\"low|medium|high\"}",
-          "maxIterations": 5,
+          "maxIterations": 8,
           "enableStreaming": false
         }
       }
