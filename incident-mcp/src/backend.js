@@ -25,6 +25,10 @@ async function getJson(path, headers = {}) {
 async function health() {
   try {
     const r = await getJson('/health?format=json');
+    if (r.status !== 200 || typeof r.body !== 'object') {
+      // e.g. 503 "no active deployment" from the Alternate Clouds proxy.
+      return { reachable: true, status: 'down', httpStatus: r.status, latencyMs: r.ms, detail: r.body };
+    }
     return { reachable: true, httpStatus: r.status, latencyMs: r.ms, ...r.body };
   } catch (err) {
     // Unreachable is itself a P1 signal for the triage agent, so report it, don't throw.

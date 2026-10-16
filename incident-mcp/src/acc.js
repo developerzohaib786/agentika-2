@@ -20,8 +20,13 @@ function run(args) {
   });
 }
 
-// Rebuild the backend from a specific commit: our rollback.
-const rebuildAt = (sha) => run(['services', 'rebuild', SERVICE_ID, '--sha', sha]);
+// Rebuild the backend from a specific commit: our rollback. GIT_SHA first so
+// /version reports the commit that is really running (CI does the same on deploy).
+async function rebuildAt(sha) {
+  const env = await run(['services', 'env', 'set', SERVICE_ID, 'GIT_SHA', sha]);
+  const rebuild = await run(['services', 'rebuild', SERVICE_ID, '--sha', sha]);
+  return DRY_RUN ? { dryRun: true, command: `${env.command} && ${rebuild.command}` } : rebuild;
+}
 // Redeploy the current build: our restart.
 const redeploy = () => run(['services', 'deploy', SERVICE_ID, '-y']);
 

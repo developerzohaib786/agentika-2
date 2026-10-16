@@ -74,6 +74,7 @@ function buildServer() {
     },
     safe(async ({ sha, reason }) => {
       console.log(JSON.stringify({ ts: new Date().toISOString(), msg: 'rollback_requested', sha, reason }));
+      await github.assertRollbackTarget(sha);
       return { action: 'rollback', sha, ...(await acc.rebuildAt(sha)) };
     })
   );

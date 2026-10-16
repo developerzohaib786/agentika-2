@@ -6,6 +6,7 @@ cd "$(dirname "$0")/.."
 set -a; . ./.env; set +a
 curl -fsS -X POST "https://${DOMAIN}/webhook/${1:-incident}" \
   -H 'Content-Type: application/json' \
+  -H "X-Incident-Token: ${INCIDENT_WEBHOOK_TOKEN}" \
   -d "{
     \"source\": \"fake-alert\",
     \"service\": \"backend\",

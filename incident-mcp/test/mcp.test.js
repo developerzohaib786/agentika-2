@@ -48,8 +48,23 @@ test('incident MCP tools against a live backend', async (t) => {
 
   const rollback = await call('rollback_to_version', { sha: 'abc1234', reason: 'test' });
   assert.strictEqual(rollback.data.dryRun, true);
-  assert.match(rollback.data.command, /services rebuild svc-test --sha abc1234/);
+  assert.match(rollback.data.command, /services env set svc-test GIT_SHA abc1234 && .*services rebuild svc-test --sha abc1234/);
 
   const badSha = await client.callTool({ name: 'rollback_to_version', arguments: { sha: 'x; rm -rf /', reason: 't' } });
   assert.ok(badSha.isError);
+});
+
+test('get_health_status reports a non-200 backend as down', async () => {
+  const http = require('http');
+  const proxy = http.createServer((req, res) => {
+    res.writeHead(503, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: 'Service Unavailable', message: 'This service exists but has no active deployment.' }));
+  }).listen(0);
+  process.env.BACKEND_URL = `http://127.0.0.1:${proxy.address().port}`;
+  delete require.cache[require.resolve('../src/backend')];
+  const backend = require('../src/backend');
+  const h = await backend.health();
+  proxy.close();
+  assert.strictEqual(h.status, 'down');
+  assert.strictEqual(h.httpStatus, 503);
 });

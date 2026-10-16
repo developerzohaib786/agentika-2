@@ -3,7 +3,7 @@
 > Living document. Update it whenever server state, decisions or progress change, so a teammate (or an AI assistant) can pick up instantly.
 
 **Last updated:** 2026-10-16
-**Phase:** Day 0 / setup. Local scaffolding only, no server yet.
+**Phase:** Day 0 / setup. Server is up (EC2 + n8n + Incident MCP). Next: n8n credentials + workflow.
 
 ---
 
@@ -18,22 +18,22 @@ Judging focus: real problem, multi-agent/MCP depth, reliability, clean live demo
 
 | Item | Status | Value / notes |
 |---|---|---|
-| AWS account + budget alert | ⬜ TODO | |
-| EC2 instance (Ubuntu 22.04, t3.micro/small) | ⬜ TODO | instance id: — |
-| Elastic IP | ⬜ TODO | IP: — |
-| Security group (80/443 open, 22 my IP only) | ⬜ TODO | |
-| 2 GB swap | ⬜ TODO | |
-| Docker + Compose installed | ⬜ TODO | |
-| DuckDNS subdomain → Elastic IP | ⬜ TODO | domain: —.duckdns.org |
-| Caddy HTTPS working | ⬜ TODO | |
-| n8n running (SQLite) | ⬜ TODO | URL: https://—.duckdns.org |
-| Alternate Clouds project + `acc` CLI login | ⬜ TODO | project id: — |
-| Backend service on Alternate Clouds (GitHub, `backend/`) | 🟨 live, old commit | URL: https://alternate-silent-dust-5778-github-app.alternatefutures.ai · `/health` ✅ `/api/orders` ✅ `/internal/logs` 404 (redeploy latest + set `LOGS_TOKEN`) · service id: — |
-| `LOGS_TOKEN` set on backend + Incident MCP | ⬜ TODO | |
-| Incident MCP container (EC2) | ⬜ TODO | internal: http://incident-mcp:<port> · talks to backend via `BACKEND_URL` |
-| GitHub MCP | ⬜ TODO | hosted endpoint + fine-grained PAT |
-| Gemini key in n8n credentials | ⬜ TODO | Groq as backup |
-| Slack app (Request URL → n8n webhook) | ⬜ TODO | Telegram fallback |
+| AWS account + budget alert | ⬜ budget alert? | |
+| EC2 instance | ✅ | **Amazon Linux 2023**, 2 vCPU / 7.8 GB, 32 GB disk · SSH `ec2-user@3.83.158.94` with `agentika2.pem` · repo at `~/agentika-2` |
+| Elastic IP | ❓ confirm | IP: 3.83.158.94 (if not elastic, it changes on stop/start → rerun DuckDNS update) |
+| Security group (80/443 open, 22 my IP only) | ✅ 80/443 reachable | |
+| 2 GB swap | ✅ | |
+| Docker + Compose installed | ✅ | dnf docker + compose v2.32.4 / buildx v0.19.3 plugins |
+| DuckDNS subdomain → server IP | ✅ | agentika.duckdns.org → 3.83.158.94 |
+| Caddy HTTPS working | ✅ | Let's Encrypt cert obtained |
+| n8n running (SQLite) | ✅ | https://agentika.duckdns.org (owner account: TODO) |
+| Alternate Clouds project + `acc` CLI login | ✅ | project `agentika` = cmvay0omf01ho9u1rl24ygd7y · PAT `agentika-ec2` in server + local `.env` |
+| Backend service on Alternate Clouds (GitHub, `backend/`) | ✅ live (root `backend/`) | URL: https://alternate-silent-dust-5778-github-app.alternatefutures.ai · `/health` ✅ `/api/orders` ✅ `/internal/logs` ✅ (bearer `LOGS_TOKEN`) · service id: cmvay3rjk01k19u1rqgzm1z1q · leftover `cyber-burst-9105` (cmvay0oz801hr9u1r2b4ss814) is stopped |
+| `LOGS_TOKEN` set on backend + Incident MCP | ✅ | same value on Alternate Clouds, server `.env`, local `.env` |
+| Incident MCP container (EC2) | ✅ | `http://incident-mcp:3001/mcp`, bearer `MCP_TOKEN` (in server `.env`). Verified live: health ✅ logs ✅ deploy history ✅ · `acc` authenticated in container ✅ · `ACC_DRY_RUN=true` (real rebuild not tested yet) |
+| GitHub MCP | ✅ | hosted `https://api.githubcopilot.com/mcp/`, PAT verified (has admin on repo, narrower later) |
+| n8n credentials | ✅ | Gemini, Groq, Slack agentika bot, Incident MCP token, GitHub MCP (PAT) |
+| Slack app | ✅ | bot `agentika` in workspace Agentika 2.0. Approval via n8n Send-and-Wait (no Request URL needed). Channel #all-agentika-20 (C0C9NB3RBS5) |
 | Sentry project / fake alert curl | ⬜ TODO | |
 
 Legend: ⬜ TODO · 🟨 in progress · ✅ done · ❌ blocked
@@ -52,7 +52,8 @@ Legend: ⬜ TODO · 🟨 in progress · ✅ done · ❌ blocked
 | `Caddyfile` | ✅ | `{$DOMAIN} { reverse_proxy n8n:5678 }`. MCP is not public |
 | `scripts/setup-server.sh` | ✅ | swap, Docker, DuckDNS, data dirs, `compose up` |
 | `scripts/fake-alert.sh` | ✅ | POSTs a fake alert to `https://$DOMAIN/webhook/incident` |
-| n8n workflow | ⬜ | owner: AI/Agent engineer |
+| CI/CD (`.github/workflows/ci-cd.yml`) | 🟨 written, not pushed | push → unit tests → `acc` rebuild at the commit → wait for `/version` = sha → smoke tests (`scripts/ci/`) → on failure POST incident (with commit, previous_sha, failed_checks) to n8n → Slack rollback button. Webhook needs `X-Incident-Token`. Server side: `scripts/enable-cicd.sh` |
+| n8n workflow | ✅ published, tested | `n8n/incident-responder.json` → n8n id `TQpLjt5JpmZrcu6e`, 30 nodes. Webhook `POST /webhook/incident`. 3 agents on **Gemini 3.8 Flash** (Groq `openai/gpt-oss-120b` fallback) → evidence guard → Slack approval (#all-agentika-20) → MCP rollback → health-poll verifier. Runs: #2 full path (dry run), #3 no-evidence path ✅ |
 | Demo "bad commit" scenario | ⬜ | candidate: break `orderTotal` in `backend/src/orders.js` |
 
 ---
@@ -91,10 +92,17 @@ EXECUTIONS_DATA_PRUNE=true
 
 - **2026-10-16:** Backend live on Alternate Clouds (older commit). Built `incident-mcp/`, `docker-compose.yml`, `Caddyfile`, `scripts/setup-server.sh`, `scripts/fake-alert.sh`.
 
+- **2026-10-16:** Single repo at the project root (`developerzohaib786/agentika-2`, backend in `backend/`). Alternate Clouds rebuilt from `backend/`, `/internal/logs` → 401 ✅.
+- **2026-10-16:** EC2 (Amazon Linux 2023) set up via `scripts/setup-server.sh` (now supports dnf). Caddy TLS ✅, n8n ✅ at https://agentika.duckdns.org, Incident MCP ✅ (health + deploy history live).
+
+- **2026-10-16:** Workflow live. Fixes after test run #2: (1) agents invented a cause with no error logs and opened PR #1, so added the `evidence_found` guard (no evidence → Slack to human, no PR); (2) the MCP now refuses rollbacks older than `ROLLBACK_FLOOR_SHA` (160cd4d, the first commit with the `backend/` layout); (3) dry-run/failed rollbacks are reported honestly. `gemini-2.5-flash` is not available to new keys, and Groq dropped llama-3.3.
+
+- **2026-10-16:** CI/CD added. Smoke script tested in a container: healthy → 6/6 ok; broken `orderTotal` → 4 failures + health degraded. The MCP rollback now also sets `GIT_SHA`. Server step (`enable-cicd.sh`: webhook token + `ACC_DRY_RUN=false`) must be run by the user (blocked by the permission classifier).
+
 ## Next steps
-1. Push the repo to GitHub, rebuild the backend on Alternate Clouds, and set `LOGS_TOKEN` on it → `/internal/logs` returns 401 without the token instead of 404.
-2. Provision EC2 (t3.small, 80/443 open, 22 my IP) + Elastic IP + DuckDNS subdomain.
-3. On EC2: clone the repo, fill `.env`, run `bash scripts/setup-server.sh`.
+1. Test one real `acc services rebuild` (ACC_DRY_RUN=false), then keep it off until the demo.
+2. Commit + push local changes (setup-server.sh, MCP health fix). On the server: `git checkout . && git pull`.
+3. Create the n8n owner account.
 4. n8n: create the owner account, add credentials (Gemini, Groq, Slack, GitHub MCP, Incident MCP at `http://incident-mcp:3001/mcp`).
 5. Build the n8n workflow (Webhook → Triage → Investigator → Root-cause → Slack approval → action → Verifier).
 6. Test `acc` from the MCP container, then set `ACC_DRY_RUN=false`.

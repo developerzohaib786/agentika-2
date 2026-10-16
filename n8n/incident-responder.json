@@ -1,0 +1,1075 @@
+{
+  "name": "Agentika · Autonomous Incident Responder",
+  "id": "TQpLjt5JpmZrcu6e",
+  "nodes": [
+    {
+      "id": "7cde13b6-ac40-470c-8ba5-9e115a145652",
+      "name": "Incident Alert",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "incident",
+        "authentication": "headerAuth",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "agIncidentHook01",
+          "name": "Incident webhook token"
+        }
+      },
+      "webhookId": "55ea8d2f-3960-4a99-88f9-ff079579558f"
+    },
+    {
+      "id": "1207f02d-7dbe-432e-8f22-b3f831974a87",
+      "name": "Normalize Alert",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        300
+      ],
+      "parameters": {
+        "jsCode": "// Sentry, curl or anything else: keep one shape for the agents.\nconst b = $input.first().json.body ?? $input.first().json;\nconst id = 'INC-' + new Date().toISOString().replace(/[-:T]/g, '').slice(0, 12);\nreturn [{ json: {\n  id,\n  title: b.title ?? b.message ?? b.event?.title ?? 'Unknown alert',\n  service: b.service ?? b.project ?? 'backend',\n  url: b.url ?? null,\n  source: b.source ?? (b.event ? 'sentry' : 'webhook'),\n  // Set by the CI/CD pipeline (scripts/ci/report-incident.sh):\n  stage: b.stage ?? null,\n  commit: b.commit ?? null,\n  commit_message: b.commit_message ?? null,\n  previous_sha: b.previous_sha ?? null,\n  pushed_by: b.pushed_by ?? null,\n  run_url: b.run_url ?? null,\n  failed_checks: b.failed_checks ?? [],\n  receivedAt: new Date().toISOString(),\n  raw: b,\n} }];"
+      }
+    },
+    {
+      "id": "9aeb192d-0786-4d5a-8cf3-4f7f8f318e08",
+      "name": "Triage Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        460,
+        300
+      ],
+      "parameters": {
+        "promptType": "define",
+        "text": "=Alert:\n{{ JSON.stringify($('Normalize Alert').first().json, null, 2) }}",
+        "hasOutputParser": false,
+        "needsFallback": true,
+        "options": {
+          "systemMessage": "You are the Triage agent of an autonomous incident responder. The service is `backend` (Node.js/Express on Alternate Clouds).\n\nCall get_health_status exactly once, then classify:\n- P1: status down/unreachable, or errorRate >= 0.5\n- P2: status degraded, or errorRate >= 0.2, or the alert reports 5xx on a business endpoint\n- P3: some errors but the service mostly works\n- P4: no impact / noise\ngo = true for P1, P2 and P3; false for P4.\n\nAnswer with ONLY one JSON object, no prose, no code fences:\n{\"severity\":\"P1|P2|P3|P4\",\"affected_service\":\"backend\",\"go\":true,\"summary\":\"<one sentence>\",\"health\":{\"status\":\"...\",\"errorRate\":0,\"version\":\"...\"}}",
+          "maxIterations": 4,
+          "enableStreaming": false
+        }
+      }
+    },
+    {
+      "id": "c8d374b4-7f93-4756-9ac4-3212d1463727",
+      "name": "Triage Agent · Gemini",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.2,
+      "position": [
+        340,
+        520
+      ],
+      "parameters": {
+        "modelName": "models/gemini-3.8-flash",
+        "options": {
+          "temperature": 0.1
+        }
+      },
+      "credentials": {
+        "googlePalmApi": {
+          "id": "plH0CgdVUdxoNhtf",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "id": "337b3946-4edf-43a8-b8f4-cb8731b980aa",
+      "name": "Triage Agent · Groq",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        460,
+        520
+      ],
+      "parameters": {
+        "model": "openai/gpt-oss-120b",
+        "options": {
+          "temperature": 0.1
+        }
+      },
+      "credentials": {
+        "groqApi": {
+          "id": "qeLdwny4t04hTk3q",
+          "name": "Groq account"
+        }
+      }
+    },
+    {
+      "id": "790065d5-1311-4662-ad55-dd0b3f1e9ba2",
+      "name": "Triage Agent · Incident MCP",
+      "type": "@n8n/n8n-nodes-langchain.mcpClientTool",
+      "typeVersion": 1.4,
+      "position": [
+        580,
+        520
+      ],
+      "parameters": {
+        "endpointUrl": "http://incident-mcp:3001/mcp",
+        "serverTransport": "httpStreamable",
+        "authentication": "bearerAuth",
+        "include": "selected",
+        "includeTools": [
+          "get_health_status"
+        ],
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "agIncidentMcp001",
+          "name": "Incident MCP token"
+        }
+      }
+    },
+    {
+      "id": "3f7cbb4f-e4cd-4611-b637-506c8b1da511",
+      "name": "Parse Triage",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        700,
+        300
+      ],
+      "parameters": {
+        "jsCode": "// Agents are told to answer with one JSON object; pull it out robustly.\nconst raw = String($('Triage Agent').first().json.output ?? '');\nconst m = raw.match(/\\{[\\s\\S]*\\}/);\nlet data;\ntry { data = JSON.parse(m ? m[0] : raw); } catch (e) { data = { parse_error: e.message, raw }; }\nreturn [{ json: data }];"
+      }
+    },
+    {
+      "id": "41d51670-9051-4457-a815-8cd9f2374417",
+      "name": "Needs action?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        920,
+        300
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "61b6a788-2587-44a4-af1e-f65d5971615f",
+              "leftValue": "={{ $json.go }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      }
+    },
+    {
+      "id": "3e077e78-ab58-4278-829c-21d6043d0942",
+      "name": "Slack: no action",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        1140,
+        520
+      ],
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "C0C9NB3RBS5"
+        },
+        "text": "=:white_check_mark: *{{ $('Normalize Alert').first().json.id }}* triaged as *{{ $('Parse Triage').first().json.severity }}*, no action needed.\n> {{ $('Normalize Alert').first().json.title }}\n{{ $('Parse Triage').first().json.summary }}",
+        "otherOptions": {
+          "includeLinkToWorkflow": true
+        }
+      },
+      "credentials": {
+        "slackApi": {
+          "id": "agSlackBot000001",
+          "name": "Slack agentika bot"
+        }
+      }
+    },
+    {
+      "id": "c79f6164-748c-4200-9865-190034f47a42",
+      "name": "Investigator Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        1180,
+        300
+      ],
+      "parameters": {
+        "promptType": "define",
+        "text": "=Incident: {{ $('Normalize Alert').first().json.id }}\nAlert: {{ JSON.stringify($('Normalize Alert').first().json.raw) }}\nTriage: {{ JSON.stringify($('Parse Triage').first().json) }}\nGitHub repo: owner `{{ $env.GITHUB_REPO.split('/')[0] }}`, repo `{{ $env.GITHUB_REPO.split('/')[1] }}`, branch `main`. The backend code lives under `backend/`.",
+        "hasOutputParser": false,
+        "needsFallback": true,
+        "options": {
+          "systemMessage": "You are the Investigator agent. Collect evidence; do not fix anything. Use at most 4 tool calls:\n1. get_recent_logs with level=\"error\" and limit=20 to get the error and stack trace.\n2. get_deploy_history with limit=5 to see recent commits (each commit is a deploy).\n3. get_commit (GitHub) on the newest commit(s) to read the diff, only if needed to confirm.\nThe suspect commit is the one whose diff touches the file/function in the stack trace. The last good commit is the commit right before the suspect.\nRules: never guess. If the logs contain no error entries, or no commit diff matches the stack trace, set evidence_found=false, leave suspect_commit and last_good_commit as null, and explain why in evidence. If the alert comes from CI/CD (source \"ci-cd\"): `commit` is the commit that was just deployed (prime suspect), `previous_sha` is the commit that was live before it (the last good commit unless evidence says otherwise), and failed_checks are the smoke-test failures. Read the diff of `commit` with get_commit.\nOnly set evidence_found=true when real errors (error log lines or failed CI smoke checks) AND a matching commit diff support it.\n\nAnswer with ONLY one JSON object, no prose, no code fences:\n{\"evidence_found\":true,\"error_signature\":\"<error message>\",\"stack_top\":\"<file:line function>\",\"suspect_commit\":{\"sha\":\"<full sha>\",\"message\":\"...\",\"files\":[\"backend/...\"]},\"last_good_commit\":{\"sha\":\"<full sha>\",\"message\":\"...\"},\"file_path\":\"backend/src/<file>.js\",\"evidence\":[\"<short fact>\",\"...\"],\"confidence\":0.0}",
+          "maxIterations": 8,
+          "enableStreaming": false
+        }
+      }
+    },
+    {
+      "id": "6974ae67-568a-4c68-aac5-26024e61dcd8",
+      "name": "Investigator Agent · Gemini",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.2,
+      "position": [
+        1060,
+        520
+      ],
+      "parameters": {
+        "modelName": "models/gemini-3.8-flash",
+        "options": {
+          "temperature": 0.1
+        }
+      },
+      "credentials": {
+        "googlePalmApi": {
+          "id": "plH0CgdVUdxoNhtf",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "id": "00ad3ff9-5571-4e34-893d-33f3db02a5c8",
+      "name": "Investigator Agent · Groq",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        1180,
+        520
+      ],
+      "parameters": {
+        "model": "openai/gpt-oss-120b",
+        "options": {
+          "temperature": 0.1
+        }
+      },
+      "credentials": {
+        "groqApi": {
+          "id": "qeLdwny4t04hTk3q",
+          "name": "Groq account"
+        }
+      }
+    },
+    {
+      "id": "0ae288f3-0960-4376-b4c2-08f84be25a49",
+      "name": "Investigator Agent · Incident MCP",
+      "type": "@n8n/n8n-nodes-langchain.mcpClientTool",
+      "typeVersion": 1.4,
+      "position": [
+        1300,
+        520
+      ],
+      "parameters": {
+        "endpointUrl": "http://incident-mcp:3001/mcp",
+        "serverTransport": "httpStreamable",
+        "authentication": "bearerAuth",
+        "include": "selected",
+        "includeTools": [
+          "get_recent_logs",
+          "get_deploy_history"
+        ],
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "agIncidentMcp001",
+          "name": "Incident MCP token"
+        }
+      }
+    },
+    {
+      "id": "be360ee9-adf8-40aa-9f02-d2c761c83178",
+      "name": "Investigator Agent · GitHub MCP",
+      "type": "@n8n/n8n-nodes-langchain.mcpClientTool",
+      "typeVersion": 1.4,
+      "position": [
+        1420,
+        520
+      ],
+      "parameters": {
+        "endpointUrl": "https://api.githubcopilot.com/mcp/",
+        "serverTransport": "httpStreamable",
+        "authentication": "bearerAuth",
+        "include": "selected",
+        "includeTools": [
+          "get_commit",
+          "list_commits"
+        ],
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "agGithubMcp00001",
+          "name": "GitHub MCP (PAT)"
+        }
+      }
+    },
+    {
+      "id": "b7ef1baf-a53e-4101-8d63-a51a803070e7",
+      "name": "Parse Investigation",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1420,
+        300
+      ],
+      "parameters": {
+        "jsCode": "// Agents are told to answer with one JSON object; pull it out robustly.\nconst raw = String($('Investigator Agent').first().json.output ?? '');\nconst m = raw.match(/\\{[\\s\\S]*\\}/);\nlet data;\ntry { data = JSON.parse(m ? m[0] : raw); } catch (e) { data = { parse_error: e.message, raw }; }\nreturn [{ json: data }];"
+      }
+    },
+    {
+      "id": "2e4db6f7-8c8b-4017-9a9c-141082535ced",
+      "name": "Evidence found?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1540,
+        300
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "7e0e6add-108b-4fe7-871b-f0c48b17ba21",
+              "leftValue": "={{ $json.evidence_found === true && !!$json.suspect_commit?.sha && !!$json.last_good_commit?.sha }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      }
+    },
+    {
+      "id": "18f02a06-fcb4-4f8c-b5a7-61028f30fe32",
+      "name": "Slack: no evidence → human",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        1660,
+        560
+      ],
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "C0C9NB3RBS5"
+        },
+        "text": "=:mag: *{{ $('Normalize Alert').first().json.id }}* · *{{ $('Parse Triage').first().json.severity }}*: {{ $('Normalize Alert').first().json.title }}\nInvestigation found no error logs or matching commit, so no fix PR was opened. <!here> please take a look.\nEvidence: {{ ($json.evidence ?? []).join(' · ') }}",
+        "otherOptions": {
+          "includeLinkToWorkflow": true
+        }
+      },
+      "credentials": {
+        "slackApi": {
+          "id": "agSlackBot000001",
+          "name": "Slack agentika bot"
+        }
+      }
+    },
+    {
+      "id": "08ec57de-409e-4e14-b03f-4f5d086ee673",
+      "name": "Root-cause Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        1660,
+        300
+      ],
+      "parameters": {
+        "promptType": "define",
+        "text": "=Incident: {{ $('Normalize Alert').first().json.id }}\nEvidence: {{ JSON.stringify($('Parse Investigation').first().json) }}\nGitHub repo: owner `{{ $env.GITHUB_REPO.split('/')[0] }}`, repo `{{ $env.GITHUB_REPO.split('/')[1] }}`, base branch `main`.\nUse branch name: fix/{{ $('Normalize Alert').first().json.id.toLowerCase() }}",
+        "hasOutputParser": false,
+        "needsFallback": true,
+        "options": {
+          "systemMessage": "You are the Root-cause agent. Write the smallest correct fix and open a pull request. Use at most 5 tool calls, in this order:\n1. get_file_contents for file_path on main (note the file sha).\n2. create_branch from main with the given branch name.\n3. create_or_update_file on that branch with the FULL fixed file content, the file sha from step 1, and a commit message starting with \"fix:\".\n4. create_pull_request into main. Body: root cause, evidence, the fix, and the rollback plan (roll back to the last good commit).\nNever merge. Never touch files other than the one in file_path. Keep the existing tests passing.\n\nAnswer with ONLY one JSON object, no prose, no code fences:\n{\"root_cause\":\"<one or two sentences>\",\"fix_summary\":\"...\",\"pr_url\":\"https://github.com/...\",\"pr_number\":0,\"branch\":\"fix/...\",\"rollback_sha\":\"<last good commit full sha>\",\"risk\":\"low|medium|high\"}",
+          "maxIterations": 8,
+          "enableStreaming": false
+        }
+      }
+    },
+    {
+      "id": "281d2ef2-c52c-4e44-b7ae-e12b92e3fbf7",
+      "name": "Root-cause Agent · Gemini",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.2,
+      "position": [
+        1540,
+        520
+      ],
+      "parameters": {
+        "modelName": "models/gemini-3.8-flash",
+        "options": {
+          "temperature": 0.1
+        }
+      },
+      "credentials": {
+        "googlePalmApi": {
+          "id": "plH0CgdVUdxoNhtf",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "id": "550967f5-de55-4684-b176-3f62f91444ce",
+      "name": "Root-cause Agent · Groq",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        1660,
+        520
+      ],
+      "parameters": {
+        "model": "openai/gpt-oss-120b",
+        "options": {
+          "temperature": 0.1
+        }
+      },
+      "credentials": {
+        "groqApi": {
+          "id": "qeLdwny4t04hTk3q",
+          "name": "Groq account"
+        }
+      }
+    },
+    {
+      "id": "ab37bf30-3381-44d8-918c-f5695d447415",
+      "name": "Root-cause Agent · GitHub MCP",
+      "type": "@n8n/n8n-nodes-langchain.mcpClientTool",
+      "typeVersion": 1.4,
+      "position": [
+        1780,
+        520
+      ],
+      "parameters": {
+        "endpointUrl": "https://api.githubcopilot.com/mcp/",
+        "serverTransport": "httpStreamable",
+        "authentication": "bearerAuth",
+        "include": "selected",
+        "includeTools": [
+          "get_file_contents",
+          "create_branch",
+          "create_or_update_file",
+          "create_pull_request"
+        ],
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "agGithubMcp00001",
+          "name": "GitHub MCP (PAT)"
+        }
+      }
+    },
+    {
+      "id": "b9496110-f8e0-4269-a2b6-2e199d39ac2e",
+      "name": "Parse RCA",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1900,
+        300
+      ],
+      "parameters": {
+        "jsCode": "// Agents are told to answer with one JSON object; pull it out robustly.\nconst raw = String($('Root-cause Agent').first().json.output ?? '');\nconst m = raw.match(/\\{[\\s\\S]*\\}/);\nlet data;\ntry { data = JSON.parse(m ? m[0] : raw); } catch (e) { data = { parse_error: e.message, raw }; }\nreturn [{ json: data }];"
+      }
+    },
+    {
+      "id": "1b2f4024-ae8e-4bc2-a14f-86266c77096a",
+      "name": "Slack: approve rollback?",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        2120,
+        300
+      ],
+      "parameters": {
+        "operation": "sendAndWait",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "C0C9NB3RBS5"
+        },
+        "message": "=:rotating_light: *{{ $('Normalize Alert').first().json.id }}* · *{{ $('Parse Triage').first().json.severity }}* on `backend`\n*Alert:* {{ $('Normalize Alert').first().json.title }}\n*Triage:* {{ $('Parse Triage').first().json.summary }}\n*Error:* `{{ $('Parse Investigation').first().json.error_signature }}`\n*Suspect commit:* `{{ ($('Parse Investigation').first().json.suspect_commit?.sha ?? '').slice(0, 7) }}` {{ $('Parse Investigation').first().json.suspect_commit?.message }}\n*Pushed by:* {{ $('Normalize Alert').first().json.pushed_by ?? 'n/a' }} · *CI run:* {{ $('Normalize Alert').first().json.run_url ?? 'n/a' }}\n*Root cause:* {{ $json.root_cause }}\n*Fix PR:* {{ $json.pr_url }} (risk: {{ $json.risk }})\n\n*Proposed action:* roll back to `{{ ($json.rollback_sha ?? '').slice(0, 7) }}` now; merge the PR after CI is green.",
+        "responseType": "approval",
+        "approvalOptions": {
+          "values": {
+            "approvalType": "double",
+            "approveLabel": "Approve rollback",
+            "disapproveLabel": "Reject"
+          }
+        },
+        "options": {
+          "limitWaitTime": {
+            "values": {
+              "limitType": "afterTimeInterval",
+              "resumeAmount": 30,
+              "resumeUnit": "minutes"
+            }
+          }
+        }
+      },
+      "credentials": {
+        "slackApi": {
+          "id": "agSlackBot000001",
+          "name": "Slack agentika bot"
+        }
+      },
+      "webhookId": "79c726fb-74f2-4451-8005-7130f54f8665"
+    },
+    {
+      "id": "d7c38aa0-7bc1-4ffe-84b7-0ae2023b95eb",
+      "name": "Approved?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2340,
+        300
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "8f3b6605-f72e-4c69-9e05-daaa4661b6f9",
+              "leftValue": "={{ $json.data?.approved }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      }
+    },
+    {
+      "id": "007ddcfc-aeb4-4d32-9fa6-5c190e7ffc62",
+      "name": "Slack: rejected → escalate",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        2560,
+        520
+      ],
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "C0C9NB3RBS5"
+        },
+        "text": "=:no_entry: *{{ $('Normalize Alert').first().json.id }}*: rollback rejected (or timed out). <!here> escalating to on-call.\nFix PR for review: {{ $('Parse RCA').first().json.pr_url }}",
+        "otherOptions": {
+          "includeLinkToWorkflow": true
+        }
+      },
+      "credentials": {
+        "slackApi": {
+          "id": "agSlackBot000001",
+          "name": "Slack agentika bot"
+        }
+      }
+    },
+    {
+      "id": "0ad24c88-36cf-48bb-82ec-f4caafc8f46f",
+      "name": "Rollback (Incident MCP)",
+      "type": "@n8n/n8n-nodes-langchain.mcpClient",
+      "typeVersion": 1.1,
+      "position": [
+        2560,
+        300
+      ],
+      "parameters": {
+        "serverTransport": "httpStreamable",
+        "endpointUrl": "http://incident-mcp:3001/mcp",
+        "authentication": "bearerAuth",
+        "tool": {
+          "__rl": true,
+          "mode": "id",
+          "value": "rollback_to_version"
+        },
+        "inputMode": "json",
+        "jsonInput": "={{ JSON.stringify({ sha: $('Parse RCA').first().json.rollback_sha, reason: $('Normalize Alert').first().json.id + ' approved in Slack: ' + ($('Parse RCA').first().json.root_cause ?? '') }) }}",
+        "options": {
+          "convertToBinary": false,
+          "timeout": 120000
+        }
+      },
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "agIncidentMcp001",
+          "name": "Incident MCP token"
+        }
+      }
+    },
+    {
+      "id": "64e14535-32a9-4e0c-9f79-45424c7fc061",
+      "name": "Verify health",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2780,
+        300
+      ],
+      "parameters": {
+        "jsCode": "// Alternate Clouds takes the service offline for 1-2 min while it rebuilds,\n// so poll /health for up to ~4 minutes before declaring failure.\nconst rb = $('Rollback (Incident MCP)').first().json;\nconst t = rb.content?.[0]?.text;\nlet result = t;\nif (typeof t === 'string') { try { result = JSON.parse(t); } catch { result = { message: t }; } }\nconst rollbackError = rb.isError || /^Error/.test(String(t ?? '')) ? String(result?.message ?? t) : null;\nconst dryRun = result?.dryRun === true;\n// Nothing was rebuilt: report straight away instead of polling.\nif (rollbackError || dryRun) {\n  return [{ json: { healthy: false, dryRun, rollbackError, rollback: result, checks: [] } }];\n}\nconst url = $env.BACKEND_URL + '/health?format=json';\nconst sleep = (ms) => new Promise((r) => setTimeout(r, ms));\nconst checks = [];\nlet healthy = false;\nawait sleep(30000);\nfor (let i = 0; i < 14 && !healthy; i++) {\n  try {\n    const res = await this.helpers.httpRequest({ url, json: true, returnFullResponse: true, ignoreHttpStatusErrors: true, timeout: 10000 });\n    const b = res.body ?? {};\n    checks.push({ at: new Date().toISOString(), http: res.statusCode, status: b.status, errorRate: b.errorRate });\n    healthy = res.statusCode === 200 && b.status === 'ok';\n  } catch (e) {\n    checks.push({ at: new Date().toISOString(), error: e.message });\n  }\n  if (!healthy) await sleep(15000);\n}\nreturn [{ json: { healthy, dryRun, rollbackError, rollback: result, checks } }];"
+      }
+    },
+    {
+      "id": "47ce8320-115a-441c-a87c-41ff6b63d8bd",
+      "name": "Healthy?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3000,
+        300
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "82d688d8-7703-4d86-bf35-cc6d73100629",
+              "leftValue": "={{ $json.healthy }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      }
+    },
+    {
+      "id": "5007faeb-a23a-4ee3-91f6-20a778f5a44a",
+      "name": "Slack: resolved",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        3220,
+        200
+      ],
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "C0C9NB3RBS5"
+        },
+        "text": "=:white_check_mark: *{{ $('Normalize Alert').first().json.id }}* resolved. Backend rolled back to `{{ ($('Parse RCA').first().json.rollback_sha ?? '').slice(0, 7) }}` and `/health` is ok ({{ $json.checks.length }} checks).\nNext: review and merge the fix PR {{ $('Parse RCA').first().json.pr_url }}",
+        "otherOptions": {
+          "includeLinkToWorkflow": true
+        }
+      },
+      "credentials": {
+        "slackApi": {
+          "id": "agSlackBot000001",
+          "name": "Slack agentika bot"
+        }
+      }
+    },
+    {
+      "id": "af508d06-0b61-4ddc-adb3-1da1e726d448",
+      "name": "Slack: still broken → escalate",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        3220,
+        420
+      ],
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "C0C9NB3RBS5"
+        },
+        "text": "=:fire: *{{ $('Normalize Alert').first().json.id }}*: {{ $json.dryRun ? '*DRY RUN*: rollback approved but not executed (ACC_DRY_RUN=true). Would run: `' + $json.rollback.command + '`' : $json.rollbackError ? 'rollback failed: ' + $json.rollbackError : 'rollback did not restore health after ' + $json.checks.length + ' checks. Last: `' + JSON.stringify($json.checks.at(-1)) + '`' }}\n<!here> escalating to on-call. Fix PR: {{ $('Parse RCA').first().json.pr_url }}",
+        "otherOptions": {
+          "includeLinkToWorkflow": true
+        }
+      },
+      "credentials": {
+        "slackApi": {
+          "id": "agSlackBot000001",
+          "name": "Slack agentika bot"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Incident Alert": {
+      "main": [
+        [
+          {
+            "node": "Normalize Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Triage Agent · Gemini": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Triage Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Triage Agent · Groq": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Triage Agent",
+            "type": "ai_languageModel",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Triage Agent · Incident MCP": {
+      "ai_tool": [
+        [
+          {
+            "node": "Triage Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Alert": {
+      "main": [
+        [
+          {
+            "node": "Triage Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Triage Agent": {
+      "main": [
+        [
+          {
+            "node": "Parse Triage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Triage": {
+      "main": [
+        [
+          {
+            "node": "Needs action?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Needs action?": {
+      "main": [
+        [
+          {
+            "node": "Investigator Agent",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Slack: no action",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Investigator Agent · Gemini": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Investigator Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Investigator Agent · Groq": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Investigator Agent",
+            "type": "ai_languageModel",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Investigator Agent · Incident MCP": {
+      "ai_tool": [
+        [
+          {
+            "node": "Investigator Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Investigator Agent · GitHub MCP": {
+      "ai_tool": [
+        [
+          {
+            "node": "Investigator Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Investigator Agent": {
+      "main": [
+        [
+          {
+            "node": "Parse Investigation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Investigation": {
+      "main": [
+        [
+          {
+            "node": "Evidence found?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Evidence found?": {
+      "main": [
+        [
+          {
+            "node": "Root-cause Agent",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Slack: no evidence → human",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Root-cause Agent · Gemini": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Root-cause Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Root-cause Agent · Groq": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Root-cause Agent",
+            "type": "ai_languageModel",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Root-cause Agent · GitHub MCP": {
+      "ai_tool": [
+        [
+          {
+            "node": "Root-cause Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Root-cause Agent": {
+      "main": [
+        [
+          {
+            "node": "Parse RCA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse RCA": {
+      "main": [
+        [
+          {
+            "node": "Slack: approve rollback?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack: approve rollback?": {
+      "main": [
+        [
+          {
+            "node": "Approved?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Approved?": {
+      "main": [
+        [
+          {
+            "node": "Rollback (Incident MCP)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Slack: rejected → escalate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rollback (Incident MCP)": {
+      "main": [
+        [
+          {
+            "node": "Verify health",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify health": {
+      "main": [
+        [
+          {
+            "node": "Healthy?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Healthy?": {
+      "main": [
+        [
+          {
+            "node": "Slack: resolved",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Slack: still broken → escalate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "pinData": {},
+  "active": false
+}

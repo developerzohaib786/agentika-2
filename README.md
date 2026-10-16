@@ -70,6 +70,20 @@ Not used on purpose: Ollama or any local LLM (not enough RAM), Postgres for n8n 
 6. **Rate-limit aware.** Few, focused tool calls; short prompts; Groq fallback credential in n8n.
 7. **Backup demo.** Pre-record a full run on Day 2 in case the live demo or Wi-Fi fails.
 
+## CI/CD
+
+`.github/workflows/ci-cd.yml` runs on every push to `main` that touches `backend/`:
+
+1. **Unit tests** (`npm test`). If they fail, nothing deploys.
+2. **Deploy**: `acc services rebuild <service> --sha <commit>` (+ `GIT_SHA` env so `/version` shows the commit).
+3. **Wait** until `/version` reports the new commit and `/health` is 200 (`scripts/ci/wait-for-deploy.sh`).
+4. **Smoke tests** against the live URL (`scripts/ci/smoke-test.sh`).
+5. **On failure** → `scripts/ci/report-incident.sh` POSTs the commit, the previously live commit and the failed checks to `https://<domain>/webhook/incident` (header `X-Incident-Token`). The n8n agents investigate, open a fix PR, and Slack asks to **Approve rollback**.
+
+GitHub repo settings → Secrets and variables → Actions:
+- Secrets: `AF_TOKEN`, `AF_PROJECT_ID`, `AF_BACKEND_SERVICE_ID`, `INCIDENT_WEBHOOK_TOKEN`
+- Variables: `BACKEND_URL`, `INCIDENT_WEBHOOK_URL`
+
 ---
 
 ## Repo layout

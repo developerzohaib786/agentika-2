@@ -1,0 +1,82 @@
+# CI/CD for the backend:
+#   every push / PR  → install + unit tests
+#   push to main     → deploy to Alternate Clouds at this exact commit
+#                    → wait until the new commit is live → smoke tests
+#                    → if anything fails, report an incident to n8n
+#                      (agents investigate, open a fix PR, Slack asks to approve the rollback)
+name: CI/CD
+
+on:
+  push:
+    branches: [main]
+    paths: ['backend/**', 'scripts/ci/**', '.github/workflows/ci-cd.yml']
+  pull_request:
+    paths: ['backend/**']
+  workflow_dispatch:
+
+# Never run two deploys at once; queue them in push order.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  test:
+    name: Unit tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+      - run: npm test
+
+  deploy:
+    name: Deploy + smoke test
+    needs: test
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      AF_TOKEN: ${{ secrets.AF_TOKEN }}
+      AF_PROJECT_ID: ${{ secrets.AF_PROJECT_ID }}
+      AF_BACKEND_SERVICE_ID: ${{ secrets.AF_BACKEND_SERVICE_ID }}
+      BACKEND_URL: ${{ vars.BACKEND_URL }}
+      INCIDENT_WEBHOOK_URL: ${{ vars.INCIDENT_WEBHOOK_URL }}
+      INCIDENT_WEBHOOK_TOKEN: ${{ secrets.INCIDENT_WEBHOOK_TOKEN }}
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Alternate Clouds CLI
+        run: npm install -g @alternatefutures/acc@1.10.0
+
+      - name: Record the commit currently live (rollback target)
+        run: |
+          prev=$(curl -fsS -m 15 "$BACKEND_URL/version" | jq -r '.commit // empty' || true)
+          case "$prev" in ''|unknown|null) prev="${{ github.event.before }}";; esac
+          echo "PREVIOUS_SHA=$prev" >> "$GITHUB_ENV"
+          echo "Live before deploy: $prev"
+
+      - name: Deploy ${{ github.sha }}
+        run: |
+          acc services env set "$AF_BACKEND_SERVICE_ID" GIT_SHA "$GITHUB_SHA"
+          acc services rebuild "$AF_BACKEND_SERVICE_ID" --sha "$GITHUB_SHA"
+
+      - name: Wait for the new commit to be live
+        run: bash scripts/ci/wait-for-deploy.sh
+
+      - name: Smoke tests
+        run: bash scripts/ci/smoke-test.sh
+
+      - name: Report incident to the agents
+        if: failure()
+        run: bash scripts/ci/report-incident.sh
