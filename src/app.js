@@ -53,6 +53,17 @@ function createApp() {
     res.json({ version: process.env.APP_VERSION || 'dev', commit: process.env.GIT_SHA || 'unknown' });
   });
 
+  // Recent logs for the Incident MCP (get_recent_logs), which runs on another
+  // cloud. Requires `Authorization: Bearer $LOGS_TOKEN`; disabled if unset.
+  app.get('/internal/logs', (req, res) => {
+    const token = process.env.LOGS_TOKEN;
+    if (!token || req.get('Authorization') !== `Bearer ${token}`) {
+      return res.status(401).json({ error: 'unauthorized' });
+    }
+    const limit = Math.min(Number(req.query.limit) || 100, 1000);
+    res.json(log.recent({ limit, level: req.query.level }));
+  });
+
   app.get('/api/orders', (req, res) => {
     res.json(listOrders());
   });
