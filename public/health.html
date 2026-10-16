@@ -1,0 +1,306 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agentika 2.0 · Health</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='12' fill='%2322c55e'/%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg: #0b0d12;
+    --bg-grad: radial-gradient(1200px 600px at 10% -10%, #1b2440 0%, transparent 60%),
+               radial-gradient(900px 500px at 110% 10%, #2a1740 0%, transparent 55%);
+    --panel: rgba(255,255,255,0.04);
+    --panel-border: rgba(255,255,255,0.08);
+    --text: #e6e8ee;
+    --muted: #8b93a7;
+    --accent: #7c5cff;
+    --accent-2: #22d3ee;
+    --ok: #22c55e;
+    --warn: #f59e0b;
+    --bad: #ef4444;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #f6f7fb;
+      --bg-grad: radial-gradient(1200px 600px at 10% -10%, #e3e8ff 0%, transparent 60%),
+                 radial-gradient(900px 500px at 110% 10%, #f3e6ff 0%, transparent 55%);
+      --panel: rgba(255,255,255,0.75);
+      --panel-border: rgba(15,23,42,0.08);
+      --text: #0f172a;
+      --muted: #5b6478;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    min-height: 100vh;
+    background: var(--bg-grad), var(--bg);
+    color: var(--text);
+    font: 15px/1.5 Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 28px 16px 48px; }
+
+  header { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+  .brand { display: flex; align-items: center; gap: 12px; }
+  .logo {
+    width: 38px; height: 38px; border-radius: 10px;
+    background: conic-gradient(from 200deg, var(--accent), var(--accent-2), var(--accent));
+    display: grid; place-items: center; color: #fff; font-weight: 800; letter-spacing: -.5px;
+    box-shadow: 0 6px 24px -6px var(--accent);
+  }
+  .brand h1 { font-size: 18px; margin: 0; letter-spacing: -.2px; }
+  .brand p { margin: 0; color: var(--muted); font-size: 13px; }
+  .refresh { color: var(--muted); font-size: 13px; display: flex; align-items: center; gap: 10px; }
+  .refresh button {
+    background: var(--panel); color: var(--text); border: 1px solid var(--panel-border);
+    border-radius: 8px; padding: 6px 12px; font: inherit; cursor: pointer;
+  }
+  .refresh button:hover { border-color: var(--accent); }
+
+  .panel {
+    background: var(--panel); border: 1px solid var(--panel-border); border-radius: 16px;
+    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  }
+
+  /* Hero */
+  .hero { margin-top: 24px; padding: 28px; display: grid; grid-template-columns: auto 1fr auto; gap: 24px; align-items: center; }
+  .orb { position: relative; width: 84px; height: 84px; }
+  .orb span { position: absolute; inset: 0; border-radius: 50%; background: var(--state); }
+  .orb span:nth-child(1) { animation: pulse 2.4s ease-out infinite; opacity: .35; }
+  .orb span:nth-child(2) { animation: pulse 2.4s ease-out 1.2s infinite; opacity: .35; }
+  .orb span:nth-child(3) { inset: 18px; box-shadow: 0 0 40px var(--state); }
+  @keyframes pulse { from { transform: scale(.45); opacity: .5; } to { transform: scale(1.15); opacity: 0; } }
+  .hero h2 { margin: 0; font-size: 34px; letter-spacing: -1px; line-height: 1.1; }
+  .hero h2 em { font-style: normal; color: var(--state); }
+  .hero .sub { color: var(--muted); margin-top: 6px; }
+  .chips { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+  .chip {
+    font-family: var(--mono); font-size: 12px; padding: 5px 10px; border-radius: 999px;
+    border: 1px solid var(--panel-border); background: var(--panel); color: var(--muted); white-space: nowrap;
+  }
+  .chip b { color: var(--text); font-weight: 600; }
+
+  /* Metrics */
+  .grid { display: grid; gap: 16px; margin-top: 16px; }
+  .metrics { grid-template-columns: repeat(4, 1fr); }
+  .metric { padding: 18px 20px; }
+  .metric .label { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .08em; }
+  .metric .value { font-size: 30px; font-weight: 700; letter-spacing: -1px; margin-top: 6px; font-variant-numeric: tabular-nums; }
+  .metric .hint { color: var(--muted); font-size: 12px; }
+
+  .two { grid-template-columns: 1.4fr 1fr; }
+  .card { padding: 20px; }
+  .card h3 { margin: 0 0 14px; font-size: 13px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); font-weight: 600; }
+
+  /* Sparkline */
+  .spark { width: 100%; height: 140px; display: block; }
+  .spark-legend { display: flex; gap: 16px; color: var(--muted); font-size: 12px; margin-top: 8px; }
+  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
+
+  /* Pipeline */
+  .pipeline { list-style: none; margin: 0; padding: 0; position: relative; }
+  .pipeline::before { content: ""; position: absolute; left: 13px; top: 8px; bottom: 8px; width: 2px; background: linear-gradient(var(--accent), var(--accent-2)); opacity: .4; }
+  .pipeline li { position: relative; padding: 0 0 14px 40px; }
+  .pipeline li:last-child { padding-bottom: 0; }
+  .pipeline .n {
+    position: absolute; left: 0; top: 0; width: 28px; height: 28px; border-radius: 50%;
+    display: grid; place-items: center; font-size: 12px; font-weight: 700;
+    background: var(--bg); border: 2px solid var(--accent); color: var(--text);
+  }
+  .pipeline strong { display: block; font-size: 14px; }
+  .pipeline span { color: var(--muted); font-size: 12.5px; }
+
+  /* Endpoints */
+  .endpoints { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  .endpoints td { padding: 10px 0; border-top: 1px solid var(--panel-border); }
+  .endpoints tr:first-child td { border-top: 0; }
+  .endpoints code { font-family: var(--mono); font-size: 12.5px; }
+  .method { font-family: var(--mono); font-size: 11px; font-weight: 700; color: var(--accent-2); padding-right: 12px; width: 1%; }
+  .endpoints a { color: var(--text); text-decoration: none; border-bottom: 1px dashed var(--muted); }
+  .endpoints a:hover { color: var(--accent-2); border-color: var(--accent-2); }
+  .endpoints .desc { color: var(--muted); text-align: right; }
+
+  footer { margin-top: 28px; color: var(--muted); font-size: 12.5px; display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  footer code { font-family: var(--mono); }
+
+  .offline .value, .offline h2 em { color: var(--bad); }
+
+  @media (max-width: 860px) {
+    .metrics { grid-template-columns: repeat(2, 1fr); }
+    .two { grid-template-columns: 1fr; }
+    .hero { grid-template-columns: auto 1fr; }
+    .chips { grid-column: 1 / -1; justify-content: flex-start; }
+  }
+  @media (max-width: 480px) {
+    .hero { padding: 20px; gap: 16px; }
+    .orb { width: 60px; height: 60px; }
+    .orb span:nth-child(3) { inset: 13px; }
+    .hero h2 { font-size: 26px; }
+    .metric .value { font-size: 24px; }
+    .endpoints .desc { display: none; }
+  }
+  @media (prefers-reduced-motion: reduce) { .orb span { animation: none !important; } }
+</style>
+</head>
+<body>
+<div class="wrap" id="root" style="--state: var(--muted)">
+  <header>
+    <div class="brand">
+      <div class="logo">A2</div>
+      <div>
+        <h1>Agentika 2.0</h1>
+        <p>Autonomous Incident Responder · backend service</p>
+      </div>
+    </div>
+    <div class="refresh">
+      <span id="ago">connecting…</span>
+      <button id="refreshBtn" type="button">Refresh</button>
+    </div>
+  </header>
+
+  <section class="panel hero">
+    <div class="orb" aria-hidden="true"><span></span><span></span><span></span></div>
+    <div>
+      <h2>Service is <em id="statusText">checking</em></h2>
+      <div class="sub" id="statusSub">Polling <code>/health</code> every 3 seconds.</div>
+    </div>
+    <div class="chips">
+      <span class="chip">version <b id="version">–</b></span>
+      <span class="chip">commit <b id="commit">–</b></span>
+    </div>
+  </section>
+
+  <section class="grid metrics">
+    <div class="panel metric"><div class="label">Uptime</div><div class="value" id="uptime">–</div><div class="hint">since last restart</div></div>
+    <div class="panel metric"><div class="label">Requests</div><div class="value" id="requests">–</div><div class="hint">total served</div></div>
+    <div class="panel metric"><div class="label">5xx errors</div><div class="value" id="errors">–</div><div class="hint">server failures</div></div>
+    <div class="panel metric"><div class="label">Error rate</div><div class="value" id="errorRate">–</div><div class="hint">degraded above 20%</div></div>
+  </section>
+
+  <section class="grid two">
+    <div class="panel card">
+      <h3>Error rate · live</h3>
+      <svg class="spark" id="spark" viewBox="0 0 600 140" preserveAspectRatio="none" role="img" aria-label="Error rate over time">
+        <defs>
+          <linearGradient id="fill" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="var(--accent)" stop-opacity=".45"/>
+            <stop offset="100%" stop-color="var(--accent)" stop-opacity="0"/>
+          </linearGradient>
+        </defs>
+        <line x1="0" x2="600" y1="112" y2="112" stroke="var(--warn)" stroke-dasharray="4 6" stroke-opacity=".6"/>
+        <path id="sparkFill" fill="url(#fill)"/>
+        <path id="sparkLine" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>
+      </svg>
+      <div class="spark-legend">
+        <span><i class="dot" style="background:var(--accent)"></i>error rate (last 60 checks)</span>
+        <span><i class="dot" style="background:var(--warn)"></i>20% degraded threshold</span>
+      </div>
+    </div>
+
+    <div class="panel card">
+      <h3>Incident pipeline</h3>
+      <ol class="pipeline">
+        <li><i class="n">1</i><strong>Triage</strong><span>Classify alert severity and affected service</span></li>
+        <li><i class="n">2</i><strong>Investigate</strong><span>Logs, deploy history and recent commits via MCP</span></li>
+        <li><i class="n">3</i><strong>Root cause</strong><span>Patch, rollback plan and GitHub PR</span></li>
+        <li><i class="n">4</i><strong>Approve</strong><span>Human approves or rejects in Slack</span></li>
+        <li><i class="n">5</i><strong>Verify</strong><span>Re-check this endpoint until healthy</span></li>
+      </ol>
+    </div>
+  </section>
+
+  <section class="grid">
+    <div class="panel card">
+      <h3>Endpoints</h3>
+      <table class="endpoints">
+        <tr><td class="method">GET</td><td><a href="/health?format=json"><code>/health</code></a></td><td class="desc">JSON for agents, curl and n8n · this page in browsers</td></tr>
+        <tr><td class="method">GET</td><td><a href="/version"><code>/version</code></a></td><td class="desc">App version and git SHA</td></tr>
+        <tr><td class="method">GET</td><td><a href="/api/orders"><code>/api/orders</code></a></td><td class="desc">Demo orders with totals</td></tr>
+        <tr><td class="method">GET</td><td><a href="/api/orders/1"><code>/api/orders/:id</code></a></td><td class="desc">Single order</td></tr>
+      </table>
+    </div>
+  </section>
+
+  <footer>
+    <span>Agentika 2.0 Hackathon · Workflow Automation</span>
+    <span>Machine-readable: <code>curl /health</code></span>
+  </footer>
+</div>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+  const root = $('root');
+  const history = [];
+  let lastOk = null;
+
+  const STATES = {
+    ok:       { color: 'var(--ok)',   text: 'healthy',  sub: 'All systems normal. No incident in progress.' },
+    degraded: { color: 'var(--warn)', text: 'degraded', sub: 'Error rate above threshold. The incident responder should be triggered.' },
+    offline:  { color: 'var(--bad)',  text: 'offline',  sub: 'The service is not responding. Check the container and logs.' },
+  };
+
+  function fmtUptime(s) {
+    const d = Math.floor(s / 86400), h = Math.floor(s % 86400 / 3600), m = Math.floor(s % 3600 / 60);
+    if (d) return `${d}d ${h}h`;
+    if (h) return `${h}h ${m}m`;
+    if (m) return `${m}m ${s % 60}s`;
+    return `${s}s`;
+  }
+
+  function setState(key) {
+    const s = STATES[key] || STATES.offline;
+    root.style.setProperty('--state', s.color);
+    root.classList.toggle('offline', key === 'offline');
+    $('statusText').textContent = s.text;
+    $('statusSub').textContent = s.sub;
+    document.title = `Agentika 2.0 · ${s.text}`;
+  }
+
+  function drawSpark() {
+    const W = 600, H = 140, max = 0.25; // y-axis caps at 25% so the 20% line sits near the top
+    if (history.length < 2) return;
+    const step = W / 59;
+    const offset = W - (history.length - 1) * step;
+    const pts = history.map((v, i) => [offset + i * step, H - Math.min(v, max) / max * (H - 8) - 4]);
+    const line = pts.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' ');
+    $('sparkLine').setAttribute('d', line);
+    $('sparkFill').setAttribute('d', `${line} L${W} ${H} L${pts[0][0].toFixed(1)} ${H} Z`);
+  }
+
+  // manual = Refresh button click; the server counts it as a request (auto-polls are not counted).
+  async function tick(manual = false) {
+    const headers = { Accept: 'application/json' };
+    if (manual) headers['X-Health-Check'] = 'manual';
+    try {
+      const [h, v] = await Promise.all([
+        fetch('/health', { headers, cache: 'no-store' }).then((r) => r.json()),
+        fetch('/version', { cache: 'no-store' }).then((r) => r.json()).catch(() => ({})),
+      ]);
+      setState(h.status === 'ok' ? 'ok' : 'degraded');
+      $('version').textContent = h.version;
+      $('commit').textContent = (v.commit || 'unknown').slice(0, 7);
+      $('uptime').textContent = fmtUptime(h.uptimeSec);
+      $('requests').textContent = h.requests.toLocaleString();
+      $('errors').textContent = h.errors.toLocaleString();
+      $('errorRate').textContent = (h.errorRate * 100).toFixed(1) + '%';
+      history.push(h.errorRate);
+      if (history.length > 60) history.shift();
+      drawSpark();
+      lastOk = Date.now();
+    } catch {
+      setState('offline');
+    }
+  }
+
+  setInterval(() => {
+    $('ago').textContent = lastOk ? `updated ${Math.round((Date.now() - lastOk) / 1000)}s ago` : 'connecting…';
+  }, 1000);
+  $('refreshBtn').addEventListener('click', () => tick(true));
+  tick();
+  setInterval(tick, 3000);
+</script>
+</body>
+</html>
