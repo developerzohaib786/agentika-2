@@ -43,12 +43,23 @@ jobs:
           acc services env set "$AF_BACKEND_SERVICE_ID" GIT_SHA "$GITHUB_SHA"
           acc services rebuild "$AF_BACKEND_SERVICE_ID" --sha "$GITHUB_SHA"
 
+      # A server problem must not send the agents to roll back a healthy backend,
+      # so this step can fail without triggering the incident report.
       - name: Deploy n8n server (EC2)
+        id: server
+        continue-on-error: true
         env:
           SSH_KEY: ${{ secrets.SERVER_SSH_KEY }}
-          SERVER: ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}
+          SERVER_USER: ${{ secrets.SERVER_USER }}
+          SERVER_HOST: ${{ secrets.SERVER_HOST }}
         run: |
-          install -m 600 /dev/null ~/key && echo "$SSH_KEY" > ~/key
+          for v in SSH_KEY SERVER_USER SERVER_HOST; do
+            [ -n "${!v}" ] || { echo "::error::secret for $v is empty (SERVER_SSH_KEY / SERVER_USER / SERVER_HOST)"; exit 1; }
+          done
+          SERVER="$SERVER_USER@$SERVER_HOST"
+          # Strip Windows line endings: a .pem pasted from Windows otherwise makes ssh exit 255.
+          install -m 600 /dev/null ~/key && printf '%s\n' "$SSH_KEY" | tr -d '\r' > ~/key
+          ssh-keygen -y -f ~/key >/dev/null || { echo "::error::SERVER_SSH_KEY is not a valid private key"; exit 1; }
           # Re-import the n8n workflow only when it changed (that restarts n8n).
           N8N_CHANGED=$(git diff --name-only HEAD~1 HEAD -- n8n/ | wc -l)
           ssh -i ~/key -o StrictHostKeyChecking=accept-new -o ConnectTimeout=20 "$SERVER" "
@@ -62,8 +73,15 @@ jobs:
           rm -f ~/key
 
       - name: Health check
+        id: health
         run: bash scripts/ci/health-check.sh
 
       - name: Start the automation (report incident)
-        if: failure()
+        if: failure() && steps.health.outcome == 'failure'
         run: bash scripts/ci/report-incident.sh
+
+      - name: Server deploy failed
+        if: steps.server.outcome == 'failure'
+        run: |
+          echo "::error::n8n server deploy failed (SSH). Check SERVER_* secrets and that EC2 port 22 allows GitHub runners."
+          exit 1
