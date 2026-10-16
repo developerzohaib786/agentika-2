@@ -72,17 +72,17 @@ Not used on purpose: Ollama or any local LLM (not enough RAM), Postgres for n8n 
 
 ## CI/CD
 
-`.github/workflows/ci-cd.yml` runs on every push to `main` that touches `backend/`:
+`.github/workflows/ci-cd.yml`, one job (~3 min) on every push to `main`:
 
-1. **Unit tests** (`npm test`). If they fail, nothing deploys.
-2. **Deploy**: `acc services rebuild <service> --sha <commit>` (+ `GIT_SHA` env so `/version` shows the commit).
-3. **Wait** until `/version` reports the new commit and `/health` is 200 (`scripts/ci/wait-for-deploy.sh`).
-4. **Smoke tests** against the live URL (`scripts/ci/smoke-test.sh`).
-5. **On failure** → `scripts/ci/report-incident.sh` POSTs the commit, the previously live commit and the failed checks to `https://<domain>/webhook/incident` (header `X-Incident-Token`). The n8n agents investigate, open a fix PR, and Slack asks to **Approve rollback**.
+1. **Deploy backend**: `acc services rebuild <service> --sha <commit>` (+ `GIT_SHA` so `/version` shows it).
+2. **Deploy n8n server**: SSH to EC2 → `git reset --hard origin/main` → `docker compose up -d --build` (re-imports the n8n workflow only if `n8n/` changed).
+3. **Health check** (`scripts/ci/health-check.sh`): new commit live → `/api/orders` 200 → `/health` ok → n8n up.
+4. **Unhealthy** → `scripts/ci/report-incident.sh` POSTs to `https://<domain>/webhook/incident` (header `X-Incident-Token`) and the agents take over: investigate → fix PR → Slack **Approve rollback**.
 
-GitHub repo settings → Secrets and variables → Actions:
-- Secrets: `AF_TOKEN`, `AF_PROJECT_ID`, `AF_BACKEND_SERVICE_ID`, `INCIDENT_WEBHOOK_TOKEN`
+GitHub → Settings → Secrets and variables → Actions:
+- Secrets: `AF_TOKEN`, `AF_PROJECT_ID`, `AF_BACKEND_SERVICE_ID`, `INCIDENT_WEBHOOK_TOKEN`, `SERVER_HOST`, `SERVER_USER`, `SERVER_SSH_KEY`
 - Variables: `BACKEND_URL`, `INCIDENT_WEBHOOK_URL`
+- EC2 security group must allow SSH (22) from GitHub runners.
 
 ---
 

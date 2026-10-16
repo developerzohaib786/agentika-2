@@ -52,7 +52,7 @@ Legend: ⬜ TODO · 🟨 in progress · ✅ done · ❌ blocked
 | `Caddyfile` | ✅ | `{$DOMAIN} { reverse_proxy n8n:5678 }`. MCP is not public |
 | `scripts/setup-server.sh` | ✅ | swap, Docker, DuckDNS, data dirs, `compose up` |
 | `scripts/fake-alert.sh` | ✅ | POSTs a fake alert to `https://$DOMAIN/webhook/incident` |
-| CI/CD (`.github/workflows/ci-cd.yml`) | 🟨 written, not pushed | push → unit tests → `acc` rebuild at the commit → wait for `/version` = sha → smoke tests (`scripts/ci/`) → on failure POST incident (with commit, previous_sha, failed_checks) to n8n → Slack rollback button. Webhook needs `X-Incident-Token`. Server side: `scripts/enable-cicd.sh` |
+| CI/CD (`.github/workflows/ci-cd.yml`) | 🟨 simplified, not pushed | one job: acc rebuild backend → SSH deploy EC2 (git reset + compose up; n8n import only if `n8n/` changed) → `scripts/ci/health-check.sh` → on failure report incident to n8n. Needs secrets SERVER_HOST/USER/SSH_KEY + SG port 22 open to GitHub |
 | n8n workflow | ✅ published, tested | `n8n/incident-responder.json` → n8n id `TQpLjt5JpmZrcu6e`, 30 nodes. Webhook `POST /webhook/incident`. 3 agents on **Gemini 3.8 Flash** (Groq `openai/gpt-oss-120b` fallback) → evidence guard → Slack approval (#all-agentika-20) → MCP rollback → health-poll verifier. Runs: #2 full path (dry run), #3 no-evidence path ✅ |
 | Demo "bad commit" scenario | ⬜ | candidate: break `orderTotal` in `backend/src/orders.js` |
 
