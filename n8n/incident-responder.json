@@ -418,12 +418,12 @@
       ],
       "parameters": {
         "promptType": "define",
-        "text": "=Incident: {{ $('Normalize Alert').first().json.id }}\nEvidence: {{ JSON.stringify($('Parse Investigation').first().json) }}\nGitHub repo: owner `{{ $env.GITHUB_REPO.split('/')[0] }}`, repo `{{ $env.GITHUB_REPO.split('/')[1] }}`, base branch `main`.\nUse branch name: fix/{{ $('Normalize Alert').first().json.id.toLowerCase() }}",
+        "text": "=Incident: {{ $('Normalize Alert').first().json.id }}\nEvidence: {{ JSON.stringify($('Parse Investigation').first().json).slice(0, 6000) }}\nGitHub repo: owner `{{ $env.GITHUB_REPO.split('/')[0] }}`, repo `{{ $env.GITHUB_REPO.split('/')[1] }}`, base branch `main`.\nUse branch name: fix/{{ $('Normalize Alert').first().json.id.toLowerCase() }}",
         "hasOutputParser": false,
         "needsFallback": true,
         "options": {
-          "systemMessage": "You are the Root-cause agent. Write the smallest correct fix and open a pull request. Use at most 5 tool calls, in this order:\n1. get_file_contents for file_path on main (note the file sha).\n2. create_branch from main with the given branch name.\n3. create_or_update_file on that branch with the FULL fixed file content, the file sha from step 1, and a commit message starting with \"fix:\".\n4. create_pull_request into main. Body: root cause, evidence, the fix, and the rollback plan (roll back to the last good commit).\nNever merge. Never touch files other than the one in file_path. Keep the existing tests passing.\n\nAnswer with ONLY one JSON object, no prose, no code fences:\n{\"root_cause\":\"<one or two sentences>\",\"fix_summary\":\"...\",\"pr_url\":\"https://github.com/...\",\"pr_number\":0,\"branch\":\"fix/...\",\"rollback_sha\":\"<last good commit full sha>\",\"risk\":\"low|medium|high\"}",
-          "maxIterations": 8,
+          "systemMessage": "You are the Root-cause agent. Make the smallest correct fix and open one PR. Use exactly these tool calls when possible: get_file_contents, create_branch, create_or_update_file, create_pull_request. Never merge or touch another file. Keep responses short. Return ONLY this JSON after the PR is created: {\"root_cause\":\"...\",\"fix_summary\":\"...\",\"pr_url\":\"https://github.com/...\",\"pr_number\":0,\"branch\":\"fix/...\",\"rollback_sha\":\"<last good commit full sha>\",\"risk\":\"low|medium|high\"}",
+          "maxIterations": 5,
           "enableStreaming": false
         }
       }
@@ -946,7 +946,7 @@
           {
             "node": "Root-cause Agent",
             "type": "ai_languageModel",
-            "index": 0
+            "index": 1
           }
         ]
       ]
@@ -957,7 +957,7 @@
           {
             "node": "Root-cause Agent",
             "type": "ai_languageModel",
-            "index": 1
+            "index": 0
           }
         ]
       ]
