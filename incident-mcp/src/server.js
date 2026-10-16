@@ -66,7 +66,7 @@ function buildServer() {
     'rollback_to_version',
     {
       description:
-        'Rebuild and redeploy the backend from an earlier commit (the last known good one). Only call after a human approved it in Slack. Then poll get_health_status to verify.',
+        'Redeploy the backend from an earlier commit (the last known good one). Only call after a human approved it in Slack. Returns as soon as the deploy is started (it finishes in the background in ~2 min), so poll get_health_status until its version is this sha.',
       inputSchema: {
         sha: z.string().regex(SHA).describe('Commit SHA (7-40 hex chars) from get_deploy_history'),
         reason: z.string().max(500).describe('Why, for the audit trail'),
@@ -83,7 +83,7 @@ function buildServer() {
     'restart_service',
     {
       description:
-        'Redeploy the backend on its current build (a restart). Use when the app is down but no bad commit is involved. Only after human approval.',
+        'Redeploy the backend on its current build (a restart). Use when the app is down but no bad commit is involved. Only after human approval. Returns as soon as the redeploy is started (~2 min in the background); poll get_health_status.',
       inputSchema: {
         reason: z.string().max(500),
       },

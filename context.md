@@ -107,6 +107,8 @@ EXECUTIONS_DATA_PRUNE=true
 
 - **2026-10-17:** Model swap: all 3 n8n agents now use **Azure AI Foundry** (`gpt-4.1`, node `lmChatAzureOpenAi` v1.1, project `zohaibirshad678-high-qu-project`, Responses API on, temperature 0.1, maxRetries 3, maxTokens 1200/1600/2000) via the n8n credential `Azure Open AI account` (id `sMw22aqi11BloYCd`; the key lives only in n8n). Gemini and Groq nodes removed, so there is no fallback model. Slack/GitHub MCP/Incident MCP/rollback/health-poll untouched. Rotate the Azure key (it was exposed earlier).
 
+- **2026-10-17:** Rollback timeout fix. Approving in Slack made n8n fail with `MCP error -32001: Request timed out` although the rollback itself worked (backend came up on `f29da8c`): `acc services deploy` blocks ~2 min and n8n/MCP both gave up at 120 s. Now `rollback_to_version` / `restart_service` start the deploy in the background and return at once (`incident-mcp/src/acc.js`, one deploy at a time, 15 min safety kill), and the workflow's `Verify health` node polls `/version` until it equals the rollback sha AND `/health` is ok (270 s deadline, under n8n's 300 s code-task limit). Tests: `incident-mcp/test/acc.test.js`. Deployed to EC2 by hand-copy: **commit + push so a CI `git reset --hard` doesn't undo it**.
+
 ## Next steps
 1. Test one real `acc services rebuild` (ACC_DRY_RUN=false), then keep it off until the demo.
 2. Commit + push local changes (setup-server.sh, MCP health fix). On the server: `git checkout . && git pull`.

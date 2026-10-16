@@ -37,7 +37,8 @@ test('incident MCP tools against a live backend', async (t) => {
     'get_deploy_history', 'get_health_status', 'get_recent_logs', 'restart_service', 'rollback_to_version',
   ]);
 
-  await fetch(`${process.env.BACKEND_URL}/api/orders`);
+  // /api/orders/1 (not the list route) so the suite doesn't depend on the demo bug in the list route.
+  await fetch(`${process.env.BACKEND_URL}/api/orders/1`);
 
   const health = await call('get_health_status');
   assert.strictEqual(health.data.reachable, true);
@@ -45,7 +46,7 @@ test('incident MCP tools against a live backend', async (t) => {
 
   const logs = await call('get_recent_logs', { limit: 10 });
   assert.ok(Array.isArray(logs.data));
-  assert.ok(logs.data.some((l) => l.path === '/api/orders'));
+  assert.ok(logs.data.some((l) => l.path === '/api/orders/1'));
 
   const rollback = await call('rollback_to_version', { sha: 'abc1234', reason: 'test' });
   assert.strictEqual(rollback.data.dryRun, true);
