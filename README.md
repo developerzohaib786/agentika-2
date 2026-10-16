@@ -1,4 +1,4 @@
-# Agentika 2.0: Autonomous Incident Responder
+# Agentika 2.0: Autonomous Incident Responder 
 
 A hackathon project (2 days, team of 2). A multi-agent DevOps workflow takes a production alert, triages it, investigates logs, commits and deploys, proposes a fix as a GitHub PR, and waits for a human to approve or reject it in Slack or Telegram.
 
