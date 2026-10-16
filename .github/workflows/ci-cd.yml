@@ -53,16 +53,37 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: backend
+          platforms: linux/amd64
           push: true
           tags: ${{ env.IMAGE }}:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
       - name: Deploy backend (Alternate Clouds pulls the image)
+        id: backend_deploy
+        shell: bash
         run: |
-          npm install -g @alternatefutures/acc@1.10.0 >/dev/null
+          set -Eeuo pipefail
+
+          npm install -g @alternatefutures/acc@1.10.0
+
+          for v in AF_TOKEN AF_PROJECT_ID AF_BACKEND_SERVICE_ID; do
+            [ -n "${!v}" ] || { echo "::error::$v is empty"; exit 1; }
+          done
+
+          IMAGE_REF="${IMAGE}:${GITHUB_SHA}"
+          echo "Deploying ${IMAGE_REF}"
+          docker manifest inspect "$IMAGE_REF" >/dev/null
+
           acc services env set "$AF_BACKEND_SERVICE_ID" GIT_SHA "$GITHUB_SHA"
-          acc services deploy "$AF_BACKEND_SERVICE_ID" --image "$IMAGE:$GITHUB_SHA" -y
+
+          if ! acc services deploy "$AF_BACKEND_SERVICE_ID" \
+            --image "$IMAGE_REF" \
+            -y 2>&1 | tee /tmp/acc-deploy.log; then
+            echo "::error::Alternate Clouds/Akash deployment was rejected"
+            cat /tmp/acc-deploy.log
+            exit 1
+          fi
 
       # Only when server files changed. A server problem must not send the agents
       # to roll back a healthy backend, so this step can fail without an incident.
@@ -93,10 +114,16 @@ jobs:
 
       - name: Health check
         id: health
+        if: steps.backend_deploy.outcome == 'success'
         run: bash scripts/ci/health-check.sh
 
       - name: Start the automation (report incident)
-        if: failure() && steps.health.outcome == 'failure'
+        if: |
+          failure() &&
+          (
+            steps.backend_deploy.outcome == 'failure' ||
+            steps.health.outcome == 'failure'
+          )
         run: bash scripts/ci/report-incident.sh
 
       - name: Server deploy failed
