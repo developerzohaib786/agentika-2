@@ -105,6 +105,8 @@ EXECUTIONS_DATA_PRUNE=true
 
 - **2026-10-16:** Deleted the unused services `backend-vm` (failed option-B VM; Akash 429s) and `cyber-burst-9105`. The only service left is `alternate-silent-dust-5778-github` (cmvay3rjk01k19u1rqgzm1z1q), now set to image `ghcr.io/developerzohaib786/agentika-backend:6f0ae1d`. It's stopped after the CI deploy; needs a Redeploy.
 
+- **2026-10-17:** Model swap: all 3 n8n agents now use **Azure AI Foundry** (`gpt-4.1`, node `lmChatAzureOpenAi` v1.1, project `zohaibirshad678-high-qu-project`, Responses API on, temperature 0.1, maxRetries 3, maxTokens 1200/1600/2000) via the n8n credential `Azure Open AI account` (id `sMw22aqi11BloYCd`; the key lives only in n8n). Gemini and Groq nodes removed, so there is no fallback model. Slack/GitHub MCP/Incident MCP/rollback/health-poll untouched. Rotate the Azure key (it was exposed earlier).
+
 ## Next steps
 1. Test one real `acc services rebuild` (ACC_DRY_RUN=false), then keep it off until the demo.
 2. Commit + push local changes (setup-server.sh, MCP health fix). On the server: `git checkout . && git pull`.

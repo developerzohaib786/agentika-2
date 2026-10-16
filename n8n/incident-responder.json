@@ -52,55 +52,11 @@
         "promptType": "define",
         "text": "=Alert:\n{{ JSON.stringify($('Normalize Alert').first().json, null, 2) }}",
         "hasOutputParser": false,
-        "needsFallback": true,
+        "needsFallback": false,
         "options": {
           "systemMessage": "You are the Triage agent of an autonomous incident responder. The service is `backend` (Node.js/Express on Alternate Clouds).\n\nCall get_health_status exactly once, then classify:\n- P1: status down/unreachable, or errorRate >= 0.5\n- P2: status degraded, or errorRate >= 0.2, or the alert reports 5xx on a business endpoint\n- P3: some errors but the service mostly works\n- P4: no impact / noise\ngo = true for P1, P2 and P3; false for P4.\n\nAnswer with ONLY one JSON object, no prose, no code fences:\n{\"severity\":\"P1|P2|P3|P4\",\"affected_service\":\"backend\",\"go\":true,\"summary\":\"<one sentence>\",\"health\":{\"status\":\"...\",\"errorRate\":0,\"version\":\"...\"}}",
           "maxIterations": 4,
           "enableStreaming": false
-        }
-      }
-    },
-    {
-      "id": "b5b12a2b-4aca-4157-a2ac-850eadd4b327",
-      "name": "Triage Agent · Gemini",
-      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
-      "typeVersion": 1.2,
-      "position": [
-        460,
-        520
-      ],
-      "parameters": {
-        "modelName": "models/gemini-3.8-flash",
-        "options": {
-          "temperature": 0.1
-        }
-      },
-      "credentials": {
-        "googlePalmApi": {
-          "id": "plH0CgdVUdxoNhtf",
-          "name": "Google Gemini(PaLM) Api account"
-        }
-      }
-    },
-    {
-      "id": "d267a1d9-918a-4887-a20c-c254599314b3",
-      "name": "Triage Agent · Groq",
-      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
-      "typeVersion": 1,
-      "position": [
-        340,
-        520
-      ],
-      "parameters": {
-        "model": "openai/gpt-oss-120b",
-        "options": {
-          "temperature": 0.1
-        }
-      },
-      "credentials": {
-        "groqApi": {
-          "id": "qeLdwny4t04hTk3q",
-          "name": "Groq account"
         }
       }
     },
@@ -221,55 +177,11 @@
         "promptType": "define",
         "text": "=Incident: {{ $('Normalize Alert').first().json.id }}\nAlert: {{ JSON.stringify($('Normalize Alert').first().json.raw) }}\nTriage: {{ JSON.stringify($('Parse Triage').first().json) }}\nGitHub repo: owner `{{ $env.GITHUB_REPO.split('/')[0] }}`, repo `{{ $env.GITHUB_REPO.split('/')[1] }}`, branch `main`. The backend code lives under `backend/`.",
         "hasOutputParser": false,
-        "needsFallback": true,
+        "needsFallback": false,
         "options": {
           "systemMessage": "You are the Investigator agent. Collect evidence; do not fix anything. Use at most 4 tool calls:\n1. get_recent_logs with level=\"error\" and limit=20 to get the error and stack trace.\n2. get_deploy_history with limit=5 to see recent commits (each commit is a deploy).\n3. get_commit (GitHub) on the newest commit(s) to read the diff, only if needed to confirm.\nThe suspect commit is the one whose diff touches the file/function in the stack trace. The last good commit is the commit right before the suspect.\nRules: never guess. If the logs contain no error entries, or no commit diff matches the stack trace, set evidence_found=false, leave suspect_commit and last_good_commit as null, and explain why in evidence. If the alert comes from CI/CD (source \"ci-cd\"): `commit` is the commit that was just deployed (prime suspect), `previous_sha` is the commit that was live before it (the last good commit unless evidence says otherwise), and failed_checks are the smoke-test failures. Read the diff of `commit` with get_commit.\nOnly set evidence_found=true when real errors (error log lines or failed CI smoke checks) AND a matching commit diff support it.\n\nAnswer with ONLY one JSON object, no prose, no code fences:\n{\"evidence_found\":true,\"error_signature\":\"<error message>\",\"stack_top\":\"<file:line function>\",\"suspect_commit\":{\"sha\":\"<full sha>\",\"message\":\"...\",\"files\":[\"backend/...\"]},\"last_good_commit\":{\"sha\":\"<full sha>\",\"message\":\"...\"},\"file_path\":\"backend/src/<file>.js\",\"evidence\":[\"<short fact>\",\"...\"],\"confidence\":0.0}",
           "maxIterations": 8,
           "enableStreaming": false
-        }
-      }
-    },
-    {
-      "id": "5eab80f4-815f-48d7-b819-eb1656a4ddc2",
-      "name": "Investigator Agent · Gemini",
-      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
-      "typeVersion": 1.2,
-      "position": [
-        1180,
-        520
-      ],
-      "parameters": {
-        "modelName": "models/gemini-3.8-flash",
-        "options": {
-          "temperature": 0.1
-        }
-      },
-      "credentials": {
-        "googlePalmApi": {
-          "id": "plH0CgdVUdxoNhtf",
-          "name": "Google Gemini(PaLM) Api account"
-        }
-      }
-    },
-    {
-      "id": "c76ae580-7713-40cb-b537-947fbeef5f05",
-      "name": "Investigator Agent · Groq",
-      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
-      "typeVersion": 1,
-      "position": [
-        1060,
-        520
-      ],
-      "parameters": {
-        "model": "openai/gpt-oss-120b",
-        "options": {
-          "temperature": 0.1
-        }
-      },
-      "credentials": {
-        "groqApi": {
-          "id": "qeLdwny4t04hTk3q",
-          "name": "Groq account"
         }
       }
     },
@@ -420,55 +332,11 @@
         "promptType": "define",
         "text": "=Incident: {{ $('Normalize Alert').first().json.id }}\nEvidence: {{ JSON.stringify($('Parse Investigation').first().json).slice(0, 6000) }}\nGitHub repo: owner `{{ $env.GITHUB_REPO.split('/')[0] }}`, repo `{{ $env.GITHUB_REPO.split('/')[1] }}`, base branch `main`.\nUse branch name: fix/{{ $('Normalize Alert').first().json.id.toLowerCase() }}",
         "hasOutputParser": false,
-        "needsFallback": true,
+        "needsFallback": false,
         "options": {
           "systemMessage": "You are the Root-cause agent. Make the smallest correct fix and open one PR. Use exactly these tool calls when possible: get_file_contents, create_branch, create_or_update_file, create_pull_request. Never merge or touch another file. Keep responses short. Return ONLY this JSON after the PR is created: {\"root_cause\":\"...\",\"fix_summary\":\"...\",\"pr_url\":\"https://github.com/...\",\"pr_number\":0,\"branch\":\"fix/...\",\"rollback_sha\":\"<last good commit full sha>\",\"risk\":\"low|medium|high\"}",
           "maxIterations": 8,
           "enableStreaming": false
-        }
-      }
-    },
-    {
-      "id": "ba52411b-c4de-425c-a918-ee3a539335fc",
-      "name": "Root-cause Agent · Gemini",
-      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
-      "typeVersion": 1.2,
-      "position": [
-        1660,
-        520
-      ],
-      "parameters": {
-        "modelName": "models/gemini-3.8-flash",
-        "options": {
-          "temperature": 0.1
-        }
-      },
-      "credentials": {
-        "googlePalmApi": {
-          "id": "plH0CgdVUdxoNhtf",
-          "name": "Google Gemini(PaLM) Api account"
-        }
-      }
-    },
-    {
-      "id": "ec0af337-8b88-4490-a934-f30b20ef3b2f",
-      "name": "Root-cause Agent · Groq",
-      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
-      "typeVersion": 1,
-      "position": [
-        1540,
-        520
-      ],
-      "parameters": {
-        "model": "openai/gpt-oss-120b",
-        "options": {
-          "temperature": 0.1
-        }
-      },
-      "credentials": {
-        "groqApi": {
-          "id": "qeLdwny4t04hTk3q",
-          "name": "Groq account"
         }
       }
     },
@@ -758,6 +626,99 @@
           "name": "Slack agentika bot"
         }
       }
+    },
+    {
+      "id": "add4f634-4461-43eb-bca8-a2148ea734f1",
+      "name": "Triage Agent · Azure Foundry",
+      "type": "@n8n/n8n-nodes-langchain.lmChatAzureOpenAi",
+      "typeVersion": 1.1,
+      "position": [
+        460,
+        520
+      ],
+      "parameters": {
+        "authentication": "azureOpenAiApi",
+        "project": "zohaibirshad678-high-qu-project",
+        "model": {
+          "__rl": true,
+          "mode": "id",
+          "value": "gpt-4.1"
+        },
+        "responsesApiEnabled": true,
+        "options": {
+          "temperature": 0.1,
+          "maxRetries": 3,
+          "maxTokens": 1200
+        }
+      },
+      "credentials": {
+        "azureOpenAiApi": {
+          "id": "sMw22aqi11BloYCd",
+          "name": "Azure Open AI account"
+        }
+      }
+    },
+    {
+      "id": "e5f24c31-e7f2-4329-9708-0d90a6faaaa2",
+      "name": "Investigator Agent · Azure Foundry",
+      "type": "@n8n/n8n-nodes-langchain.lmChatAzureOpenAi",
+      "typeVersion": 1.1,
+      "position": [
+        1180,
+        520
+      ],
+      "parameters": {
+        "authentication": "azureOpenAiApi",
+        "project": "zohaibirshad678-high-qu-project",
+        "model": {
+          "__rl": true,
+          "mode": "id",
+          "value": "gpt-4.1"
+        },
+        "responsesApiEnabled": true,
+        "options": {
+          "temperature": 0.1,
+          "maxRetries": 3,
+          "maxTokens": 1600
+        }
+      },
+      "credentials": {
+        "azureOpenAiApi": {
+          "id": "sMw22aqi11BloYCd",
+          "name": "Azure Open AI account"
+        }
+      }
+    },
+    {
+      "id": "036b6e2b-02db-43d2-93cc-2a836a60ba8d",
+      "name": "Root-cause Agent · Azure Foundry",
+      "type": "@n8n/n8n-nodes-langchain.lmChatAzureOpenAi",
+      "typeVersion": 1.1,
+      "position": [
+        1660,
+        520
+      ],
+      "parameters": {
+        "authentication": "azureOpenAiApi",
+        "project": "zohaibirshad678-high-qu-project",
+        "model": {
+          "__rl": true,
+          "mode": "id",
+          "value": "gpt-4.1"
+        },
+        "responsesApiEnabled": true,
+        "options": {
+          "temperature": 0.1,
+          "maxRetries": 3,
+          "maxTokens": 2000
+        }
+      },
+      "credentials": {
+        "azureOpenAiApi": {
+          "id": "sMw22aqi11BloYCd",
+          "name": "Azure Open AI account"
+        }
+      }
     }
   ],
   "connections": {
@@ -767,28 +728,6 @@
           {
             "node": "Normalize Alert",
             "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Triage Agent · Groq": {
-      "ai_languageModel": [
-        [
-          {
-            "node": "Triage Agent",
-            "type": "ai_languageModel",
-            "index": 1
-          }
-        ]
-      ]
-    },
-    "Triage Agent · Gemini": {
-      "ai_languageModel": [
-        [
-          {
-            "node": "Triage Agent",
-            "type": "ai_languageModel",
             "index": 0
           }
         ]
@@ -856,28 +795,6 @@
         ]
       ]
     },
-    "Investigator Agent · Groq": {
-      "ai_languageModel": [
-        [
-          {
-            "node": "Investigator Agent",
-            "type": "ai_languageModel",
-            "index": 1
-          }
-        ]
-      ]
-    },
-    "Investigator Agent · Gemini": {
-      "ai_languageModel": [
-        [
-          {
-            "node": "Investigator Agent",
-            "type": "ai_languageModel",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "Investigator Agent · Incident MCP": {
       "ai_tool": [
         [
@@ -935,28 +852,6 @@
           {
             "node": "Slack: no evidence → human",
             "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Root-cause Agent · Groq": {
-      "ai_languageModel": [
-        [
-          {
-            "node": "Root-cause Agent",
-            "type": "ai_languageModel",
-            "index": 1
-          }
-        ]
-      ]
-    },
-    "Root-cause Agent · Gemini": {
-      "ai_languageModel": [
-        [
-          {
-            "node": "Root-cause Agent",
-            "type": "ai_languageModel",
             "index": 0
           }
         ]
@@ -1059,6 +954,39 @@
           {
             "node": "Slack: still broken → escalate",
             "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Triage Agent · Azure Foundry": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Triage Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Investigator Agent · Azure Foundry": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Investigator Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Root-cause Agent · Azure Foundry": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Root-cause Agent",
+            "type": "ai_languageModel",
             "index": 0
           }
         ]
