@@ -1,0 +1,4 @@
+# Only n8n is public. The Incident MCP stays on the internal Docker network.
+{$DOMAIN} {
+	reverse_proxy n8n:5678
+}

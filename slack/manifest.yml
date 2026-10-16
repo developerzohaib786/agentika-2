@@ -1,0 +1,26 @@
+# Slack app manifest for the Agentika incident bot.
+# Use it at https://api.slack.com/apps -> Create New App -> From a manifest.
+# Interactivity (Approve/Reject buttons) is added later, once the n8n
+# webhook has a public HTTPS URL. See the commented block at the bottom.
+display_information:
+  name: Agentika Incident Bot
+  description: Autonomous incident responder. Posts incident summaries and asks for approval.
+  background_color: "#4c3bcf"
+features:
+  bot_user:
+    display_name: agentika
+    always_online: true
+oauth_config:
+  scopes:
+    bot:
+      - chat:write
+      - chat:write.public
+      - channels:read
+settings:
+  org_deploy_enabled: false
+  socket_mode_enabled: false
+  token_rotation_enabled: false
+# Once n8n is live on HTTPS, add this under `settings:` (or set it in the UI):
+#  interactivity:
+#    is_enabled: true
+#    request_url: https://<name>.duckdns.org/webhook/slack-approval

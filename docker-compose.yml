@@ -1,0 +1,59 @@
+# EC2 stack. The backend is NOT here: it runs on Alternate Clouds (BACKEND_URL).
+services:
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./caddy_data:/data
+      - ./caddy_config:/config
+    depends_on:
+      - n8n
+
+  n8n:
+    image: n8nio/n8n:latest
+    restart: unless-stopped
+    environment:
+      N8N_HOST: ${DOMAIN}
+      N8N_PROTOCOL: https
+      N8N_PORT: 5678
+      WEBHOOK_URL: https://${DOMAIN}/
+      N8N_PROXY_HOPS: 1
+      GENERIC_TIMEZONE: ${TZ:-UTC}
+      TZ: ${TZ:-UTC}
+      DB_TYPE: sqlite
+      EXECUTIONS_DATA_PRUNE: "true"
+      EXECUTIONS_DATA_MAX_AGE: 72
+      N8N_DIAGNOSTICS_ENABLED: "false"
+      N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY}
+      # Readable from n8n expressions as {{ $env.BACKEND_URL }} etc.
+      N8N_BLOCK_ENV_ACCESS_IN_NODE: "false"
+      BACKEND_URL: ${BACKEND_URL}
+      GITHUB_REPO: ${GITHUB_REPO}
+    volumes:
+      - ./n8n_data:/home/node/.n8n
+    mem_limit: 700m
+
+  incident-mcp:
+    build: ./incident-mcp
+    restart: unless-stopped
+    environment:
+      PORT: 3001
+      BACKEND_URL: ${BACKEND_URL}
+      LOGS_TOKEN: ${LOGS_TOKEN}
+      MCP_TOKEN: ${MCP_TOKEN:-}
+      GITHUB_REPO: ${GITHUB_REPO}
+      GITHUB_PAT: ${GITHUB_PAT}
+      BACKEND_PATH: ${BACKEND_PATH:-backend}
+      AF_TOKEN: ${AF_TOKEN}
+      AF_PROJECT_ID: ${AF_PROJECT_ID}
+      AF_BACKEND_SERVICE_ID: ${AF_BACKEND_SERVICE_ID}
+      ACC_DRY_RUN: ${ACC_DRY_RUN:-true}
+    expose:
+      - "3001"
+    mem_limit: 200m
