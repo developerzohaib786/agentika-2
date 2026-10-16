@@ -3,7 +3,7 @@
   "id": "TQpLjt5JpmZrcu6e",
   "nodes": [
     {
-      "id": "7cde13b6-ac40-470c-8ba5-9e115a145652",
+      "id": "47773fb7-d0ed-4b1d-bd56-8e786a91d00e",
       "name": "Incident Alert",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.1,
@@ -24,10 +24,10 @@
           "name": "Incident webhook token"
         }
       },
-      "webhookId": "55ea8d2f-3960-4a99-88f9-ff079579558f"
+      "webhookId": "a30d94b0-a18a-4030-b90e-620d5c08bc20"
     },
     {
-      "id": "1207f02d-7dbe-432e-8f22-b3f831974a87",
+      "id": "f2a58fe2-a2df-4433-b6f0-f2738680b6eb",
       "name": "Normalize Alert",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -40,7 +40,7 @@
       }
     },
     {
-      "id": "9aeb192d-0786-4d5a-8cf3-4f7f8f318e08",
+      "id": "39c361ee-4bda-404a-a49d-63fa2dba3576",
       "name": "Triage Agent",
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 3.1,
@@ -61,12 +61,12 @@
       }
     },
     {
-      "id": "c8d374b4-7f93-4756-9ac4-3212d1463727",
+      "id": "b5b12a2b-4aca-4157-a2ac-850eadd4b327",
       "name": "Triage Agent · Gemini",
       "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
       "typeVersion": 1.2,
       "position": [
-        340,
+        460,
         520
       ],
       "parameters": {
@@ -83,12 +83,12 @@
       }
     },
     {
-      "id": "337b3946-4edf-43a8-b8f4-cb8731b980aa",
+      "id": "d267a1d9-918a-4887-a20c-c254599314b3",
       "name": "Triage Agent · Groq",
       "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
       "typeVersion": 1,
       "position": [
-        460,
+        340,
         520
       ],
       "parameters": {
@@ -105,7 +105,7 @@
       }
     },
     {
-      "id": "790065d5-1311-4662-ad55-dd0b3f1e9ba2",
+      "id": "b08ebcb7-7a68-4d85-b598-f4ce2a4e5c54",
       "name": "Triage Agent · Incident MCP",
       "type": "@n8n/n8n-nodes-langchain.mcpClientTool",
       "typeVersion": 1.4,
@@ -133,7 +133,7 @@
       }
     },
     {
-      "id": "3f7cbb4f-e4cd-4611-b637-506c8b1da511",
+      "id": "fcd735b7-fa01-4fdc-afee-4e171d699339",
       "name": "Parse Triage",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -146,7 +146,7 @@
       }
     },
     {
-      "id": "41d51670-9051-4457-a815-8cd9f2374417",
+      "id": "527468ff-8958-49a7-9162-090e54690301",
       "name": "Needs action?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
@@ -164,7 +164,7 @@
           },
           "conditions": [
             {
-              "id": "61b6a788-2587-44a4-af1e-f65d5971615f",
+              "id": "d2ad44eb-f2f9-4a4e-ab7e-48b429f02027",
               "leftValue": "={{ $json.go }}",
               "rightValue": "",
               "operator": {
@@ -181,7 +181,7 @@
       }
     },
     {
-      "id": "3e077e78-ab58-4278-829c-21d6043d0942",
+      "id": "3a34c730-2329-4bf5-a46b-d6503e49b696",
       "name": "Slack: no action",
       "type": "n8n-nodes-base.slack",
       "typeVersion": 2.3,
@@ -209,7 +209,7 @@
       }
     },
     {
-      "id": "c79f6164-748c-4200-9865-190034f47a42",
+      "id": "dca36b33-3b19-4a77-831d-599084971ed8",
       "name": "Investigator Agent",
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 3.1,
@@ -230,12 +230,12 @@
       }
     },
     {
-      "id": "6974ae67-568a-4c68-aac5-26024e61dcd8",
+      "id": "5eab80f4-815f-48d7-b819-eb1656a4ddc2",
       "name": "Investigator Agent · Gemini",
       "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
       "typeVersion": 1.2,
       "position": [
-        1060,
+        1180,
         520
       ],
       "parameters": {
@@ -252,12 +252,12 @@
       }
     },
     {
-      "id": "00ad3ff9-5571-4e34-893d-33f3db02a5c8",
+      "id": "c76ae580-7713-40cb-b537-947fbeef5f05",
       "name": "Investigator Agent · Groq",
       "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
       "typeVersion": 1,
       "position": [
-        1180,
+        1060,
         520
       ],
       "parameters": {
@@ -274,7 +274,7 @@
       }
     },
     {
-      "id": "0ae288f3-0960-4376-b4c2-08f84be25a49",
+      "id": "3c9170db-5402-48ff-b291-2cd4a8a89317",
       "name": "Investigator Agent · Incident MCP",
       "type": "@n8n/n8n-nodes-langchain.mcpClientTool",
       "typeVersion": 1.4,
@@ -303,7 +303,7 @@
       }
     },
     {
-      "id": "be360ee9-adf8-40aa-9f02-d2c761c83178",
+      "id": "e333021b-fb3e-40c0-8eac-97c907aa2e99",
       "name": "Investigator Agent · GitHub MCP",
       "type": "@n8n/n8n-nodes-langchain.mcpClientTool",
       "typeVersion": 1.4,
@@ -332,7 +332,7 @@
       }
     },
     {
-      "id": "b7ef1baf-a53e-4101-8d63-a51a803070e7",
+      "id": "3eb58f1d-c8dc-4876-b8ca-f2d6e8eb0c7f",
       "name": "Parse Investigation",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -345,7 +345,7 @@
       }
     },
     {
-      "id": "2e4db6f7-8c8b-4017-9a9c-141082535ced",
+      "id": "a6cf2897-ba9f-4afe-8249-cd658290f2d6",
       "name": "Evidence found?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
@@ -363,7 +363,7 @@
           },
           "conditions": [
             {
-              "id": "7e0e6add-108b-4fe7-871b-f0c48b17ba21",
+              "id": "cfb20799-5d79-4f0a-917c-c5d888abbfc3",
               "leftValue": "={{ $json.evidence_found === true && !!$json.suspect_commit?.sha && !!$json.last_good_commit?.sha }}",
               "rightValue": "",
               "operator": {
@@ -380,7 +380,7 @@
       }
     },
     {
-      "id": "18f02a06-fcb4-4f8c-b5a7-61028f30fe32",
+      "id": "99361f3f-522e-4b20-b827-663d066db13b",
       "name": "Slack: no evidence → human",
       "type": "n8n-nodes-base.slack",
       "typeVersion": 2.3,
@@ -408,7 +408,7 @@
       }
     },
     {
-      "id": "08ec57de-409e-4e14-b03f-4f5d086ee673",
+      "id": "354a9ed5-a0e7-4508-876c-d5e1a2e53c78",
       "name": "Root-cause Agent",
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 3.1,
@@ -429,12 +429,12 @@
       }
     },
     {
-      "id": "281d2ef2-c52c-4e44-b7ae-e12b92e3fbf7",
+      "id": "ba52411b-c4de-425c-a918-ee3a539335fc",
       "name": "Root-cause Agent · Gemini",
       "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
       "typeVersion": 1.2,
       "position": [
-        1540,
+        1660,
         520
       ],
       "parameters": {
@@ -451,12 +451,12 @@
       }
     },
     {
-      "id": "550967f5-de55-4684-b176-3f62f91444ce",
+      "id": "ec0af337-8b88-4490-a934-f30b20ef3b2f",
       "name": "Root-cause Agent · Groq",
       "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
       "typeVersion": 1,
       "position": [
-        1660,
+        1540,
         520
       ],
       "parameters": {
@@ -473,7 +473,7 @@
       }
     },
     {
-      "id": "ab37bf30-3381-44d8-918c-f5695d447415",
+      "id": "ce5af8a1-421d-4714-9373-071cbd54f8a2",
       "name": "Root-cause Agent · GitHub MCP",
       "type": "@n8n/n8n-nodes-langchain.mcpClientTool",
       "typeVersion": 1.4,
@@ -504,7 +504,7 @@
       }
     },
     {
-      "id": "b9496110-f8e0-4269-a2b6-2e199d39ac2e",
+      "id": "9e2a5df3-a090-4232-90a3-46b3a9aee82b",
       "name": "Parse RCA",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -517,7 +517,7 @@
       }
     },
     {
-      "id": "1b2f4024-ae8e-4bc2-a14f-86266c77096a",
+      "id": "f8fbef9e-efd6-456a-b717-f062357bccd6",
       "name": "Slack: approve rollback?",
       "type": "n8n-nodes-base.slack",
       "typeVersion": 2.3,
@@ -558,10 +558,10 @@
           "name": "Slack agentika bot"
         }
       },
-      "webhookId": "79c726fb-74f2-4451-8005-7130f54f8665"
+      "webhookId": "1163369f-d14e-4c72-8bcc-8ef88956fb6d"
     },
     {
-      "id": "d7c38aa0-7bc1-4ffe-84b7-0ae2023b95eb",
+      "id": "5a632b53-a448-4715-9016-240f964d706d",
       "name": "Approved?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
@@ -579,7 +579,7 @@
           },
           "conditions": [
             {
-              "id": "8f3b6605-f72e-4c69-9e05-daaa4661b6f9",
+              "id": "583ce5ed-2ebf-490a-b3b3-8110900714ac",
               "leftValue": "={{ $json.data?.approved }}",
               "rightValue": "",
               "operator": {
@@ -596,7 +596,7 @@
       }
     },
     {
-      "id": "007ddcfc-aeb4-4d32-9fa6-5c190e7ffc62",
+      "id": "2c2cafd9-f106-421e-85ab-0c1d76f6ef52",
       "name": "Slack: rejected → escalate",
       "type": "n8n-nodes-base.slack",
       "typeVersion": 2.3,
@@ -624,7 +624,7 @@
       }
     },
     {
-      "id": "0ad24c88-36cf-48bb-82ec-f4caafc8f46f",
+      "id": "96a3313f-1ae4-4c9c-93f1-315fa1f972c0",
       "name": "Rollback (Incident MCP)",
       "type": "@n8n/n8n-nodes-langchain.mcpClient",
       "typeVersion": 1.1,
@@ -656,7 +656,7 @@
       }
     },
     {
-      "id": "64e14535-32a9-4e0c-9f79-45424c7fc061",
+      "id": "d4766698-284f-44d9-8e0b-f380b61fad5a",
       "name": "Verify health",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -669,7 +669,7 @@
       }
     },
     {
-      "id": "47ce8320-115a-441c-a87c-41ff6b63d8bd",
+      "id": "c990d567-fc3f-4d23-921f-5177800933f6",
       "name": "Healthy?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
@@ -687,7 +687,7 @@
           },
           "conditions": [
             {
-              "id": "82d688d8-7703-4d86-bf35-cc6d73100629",
+              "id": "57b82ab9-1d56-4550-ac81-01c949b6e04b",
               "leftValue": "={{ $json.healthy }}",
               "rightValue": "",
               "operator": {
@@ -704,7 +704,7 @@
       }
     },
     {
-      "id": "5007faeb-a23a-4ee3-91f6-20a778f5a44a",
+      "id": "b91430ac-4ba5-4041-b52a-3c88113864ab",
       "name": "Slack: resolved",
       "type": "n8n-nodes-base.slack",
       "typeVersion": 2.3,
@@ -732,7 +732,7 @@
       }
     },
     {
-      "id": "af508d06-0b61-4ddc-adb3-1da1e726d448",
+      "id": "65991ab0-d921-4f43-b94d-dd7c6b49760f",
       "name": "Slack: still broken → escalate",
       "type": "n8n-nodes-base.slack",
       "typeVersion": 2.3,
@@ -772,7 +772,7 @@
         ]
       ]
     },
-    "Triage Agent · Gemini": {
+    "Triage Agent · Groq": {
       "ai_languageModel": [
         [
           {
@@ -783,7 +783,7 @@
         ]
       ]
     },
-    "Triage Agent · Groq": {
+    "Triage Agent · Gemini": {
       "ai_languageModel": [
         [
           {
@@ -856,7 +856,7 @@
         ]
       ]
     },
-    "Investigator Agent · Gemini": {
+    "Investigator Agent · Groq": {
       "ai_languageModel": [
         [
           {
@@ -867,7 +867,7 @@
         ]
       ]
     },
-    "Investigator Agent · Groq": {
+    "Investigator Agent · Gemini": {
       "ai_languageModel": [
         [
           {
@@ -940,7 +940,7 @@
         ]
       ]
     },
-    "Root-cause Agent · Gemini": {
+    "Root-cause Agent · Groq": {
       "ai_languageModel": [
         [
           {
@@ -951,7 +951,7 @@
         ]
       ]
     },
-    "Root-cause Agent · Groq": {
+    "Root-cause Agent · Gemini": {
       "ai_languageModel": [
         [
           {

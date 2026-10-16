@@ -1,9 +1,0 @@
-**/node_modules
-**/logs
-.git
-.env
-n8n_data
-caddy_data
-caddy_config
-*.pem
-incident-mcp

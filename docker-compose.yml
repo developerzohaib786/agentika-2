@@ -51,6 +51,7 @@ services:
       GITHUB_PAT: ${GITHUB_PAT}
       BACKEND_PATH: ${BACKEND_PATH:-backend}
       ROLLBACK_FLOOR_SHA: ${ROLLBACK_FLOOR_SHA:-}
+      BACKEND_IMAGE: ${BACKEND_IMAGE:-ghcr.io/developerzohaib786/agentika-backend}
       AF_TOKEN: ${AF_TOKEN}
       AF_PROJECT_ID: ${AF_PROJECT_ID}
       AF_BACKEND_SERVICE_ID: ${AF_BACKEND_SERVICE_ID}

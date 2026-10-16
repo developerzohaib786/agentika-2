@@ -11,6 +11,7 @@ test('incident MCP tools against a live backend', async (t) => {
   const backend = createBackend().listen(0);
   process.env.BACKEND_URL = `http://127.0.0.1:${backend.address().port}`;
   process.env.AF_BACKEND_SERVICE_ID = 'svc-test';
+  process.env.BACKEND_IMAGE = 'ghcr.io/x/agentika-backend';
   delete process.env.ACC_DRY_RUN; // default: dry run
 
   const { createApp } = require('../src/index');
@@ -48,7 +49,7 @@ test('incident MCP tools against a live backend', async (t) => {
 
   const rollback = await call('rollback_to_version', { sha: 'abc1234', reason: 'test' });
   assert.strictEqual(rollback.data.dryRun, true);
-  assert.match(rollback.data.command, /services env set svc-test GIT_SHA abc1234 && .*services rebuild svc-test --sha abc1234/);
+  assert.match(rollback.data.command, /services env set svc-test GIT_SHA abc1234 && .*services deploy svc-test --image ghcr\.io\/x\/agentika-backend:abc1234 -y/);
 
   const badSha = await client.callTool({ name: 'rollback_to_version', arguments: { sha: 'x; rm -rf /', reason: 't' } });
   assert.ok(badSha.isError);

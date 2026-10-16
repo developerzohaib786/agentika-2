@@ -99,7 +99,9 @@ EXECUTIONS_DATA_PRUNE=true
 
 - **2026-10-16:** CI/CD added. Smoke script tested in a container: healthy → 6/6 ok; broken `orderTotal` → 4 failures + health degraded. The MCP rollback now also sets `GIT_SHA`. Server step (`enable-cicd.sh`: webhook token + `ACC_DRY_RUN=false`) must be run by the user (blocked by the permission classifier).
 
-- **2026-10-16:** Root cause of the CI deploy timeouts: the Alternate Clouds service still builds from the repo root (the image was from `97f150a`). Every build after the `backend/` move had no app at the root. Fix: root `Dockerfile` that builds `backend/` (verified on the server). The SSH deploy failed because the `SERVER_USER`/`SERVER_HOST` secrets were empty; the step is now continue-on-error, and only health-check failures report incidents.
+- **2026-10-16:** CI deploy timeouts: `acc services rebuild` does auto-deploy, but build + rollout takes ~7 min (verified: `6274ce0` went live), so the 8-min wait was too short. Raised to `DEPLOY_TIMEOUT_SEC=900`. (A root Dockerfile was added and then removed: the service already builds from `backend/`.) The SSH deploy failed because the `SERVER_USER`/`SERVER_HOST` secrets were empty; the step is now continue-on-error, and only health-check failures report incidents.
+
+- **2026-10-16:** Fast path (user approved): CI builds `ghcr.io/developerzohaib786/agentika-backend:<sha>` (gha cache) and a new **docker-kind** Alternate Clouds service runs it (`acc services deploy --image`). Rollback = deploy the previous image tag (MCP `BACKEND_IMAGE`). Agents are Groq-first (gpt-oss-120b), Gemini fallback. Server deploy step only runs when server files change. Target: push → Slack button in ~3-4 min.
 
 ## Next steps
 1. Test one real `acc services rebuild` (ACC_DRY_RUN=false), then keep it off until the demo.

@@ -20,12 +20,15 @@ function run(args) {
   });
 }
 
-// Rebuild the backend from a specific commit: our rollback. GIT_SHA first so
-// /version reports the commit that is really running (CI does the same on deploy).
+// CI pushes one image per commit (BACKEND_IMAGE:<full sha>), so a rollback just
+// redeploys an older image: ~1-2 min, no source build. GIT_SHA first so /version
+// reports the commit that is really running (CI does the same on deploy).
+const BACKEND_IMAGE = process.env.BACKEND_IMAGE || '';
 async function rebuildAt(sha) {
+  if (!BACKEND_IMAGE) throw new Error('BACKEND_IMAGE is not set');
   const env = await run(['services', 'env', 'set', SERVICE_ID, 'GIT_SHA', sha]);
-  const rebuild = await run(['services', 'rebuild', SERVICE_ID, '--sha', sha]);
-  return DRY_RUN ? { dryRun: true, command: `${env.command} && ${rebuild.command}` } : rebuild;
+  const deploy = await run(['services', 'deploy', SERVICE_ID, '--image', `${BACKEND_IMAGE}:${sha}`, '-y']);
+  return DRY_RUN ? { dryRun: true, command: `${env.command} && ${deploy.command}` } : deploy;
 }
 // Redeploy the current build: our restart.
 const redeploy = () => run(['services', 'deploy', SERVICE_ID, '-y']);
