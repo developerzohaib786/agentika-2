@@ -9,7 +9,8 @@ const ORDERS = [
 ];
 
 function orderTotal(order) {
-  return order.items.reduce((sum, item) => sum + item.qty * item.price, 0);
+  if (!order || !Array.isArray(order.items)) return 0;
+  return order.items.reduce((sum, item) => sum + (Number(item.qty) || 0) * (Number(item.price) || 0), 0);
 }
 
 function listOrders() {
@@ -17,7 +18,8 @@ function listOrders() {
 }
 
 function getOrder(id) {
-  const order = ORDERS.find((o) => o.id === id);
+  const numericId = Number(id);
+  const order = ORDERS.find((o) => o.id === numericId || o.id === id);
   if (!order) return null;
   return { ...order, total: orderTotal(order) };
 }
