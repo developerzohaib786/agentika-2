@@ -65,7 +65,8 @@ function createApp() {
   });
 
   app.get('/api/orders', (req, res) => {
-    res.json(listOrders());
+    // res.json(listOrders());
+    res.json(listOrders().map((o) => ({ ...o, customerName: o.customer.name.toUpperCase() })));
   });
 
   app.get('/api/orders/:id', (req, res) => {

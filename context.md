@@ -28,7 +28,7 @@ Judging focus: real problem, multi-agent/MCP depth, reliability, clean live demo
 | Caddy HTTPS working | ✅ | Let's Encrypt cert obtained |
 | n8n running (SQLite) | ✅ | https://agentika.duckdns.org (owner account: TODO) |
 | Alternate Clouds project + `acc` CLI login | ✅ | project `agentika` = cmvay0omf01ho9u1rl24ygd7y · PAT `agentika-ec2` in server + local `.env` |
-| Backend service on Alternate Clouds (GitHub, `backend/`) | ✅ live (root `backend/`) | URL: https://alternate-silent-dust-5778-github-app.alternatefutures.ai · `/health` ✅ `/api/orders` ✅ `/internal/logs` ✅ (bearer `LOGS_TOKEN`) · service id: cmvay3rjk01k19u1rqgzm1z1q · leftover `cyber-burst-9105` (cmvay0oz801hr9u1r2b4ss814) is stopped |
+| Backend service on Alternate Clouds (GitHub, `backend/`) | ✅ live (root `backend/`) | URL: https://alternate-silent-dust-5778-github-app.alternatefutures.ai · `/health` ✅ `/api/orders` ✅ `/internal/logs` ✅ (bearer `LOGS_TOKEN`) · service id: cmvay3rjk01k19u1rqgzm1z1q |
 | `LOGS_TOKEN` set on backend + Incident MCP | ✅ | same value on Alternate Clouds, server `.env`, local `.env` |
 | Incident MCP container (EC2) | ✅ | `http://incident-mcp:3001/mcp`, bearer `MCP_TOKEN` (in server `.env`). Verified live: health ✅ logs ✅ deploy history ✅ · `acc` authenticated in container ✅ · `ACC_DRY_RUN=true` (real rebuild not tested yet) |
 | GitHub MCP | ✅ | hosted `https://api.githubcopilot.com/mcp/`, PAT verified (has admin on repo, narrower later) |
@@ -102,6 +102,8 @@ EXECUTIONS_DATA_PRUNE=true
 - **2026-10-16:** CI deploy timeouts: `acc services rebuild` does auto-deploy, but build + rollout takes ~7 min (verified: `6274ce0` went live), so the 8-min wait was too short. Raised to `DEPLOY_TIMEOUT_SEC=900`. (A root Dockerfile was added and then removed: the service already builds from `backend/`.) The SSH deploy failed because the `SERVER_USER`/`SERVER_HOST` secrets were empty; the step is now continue-on-error, and only health-check failures report incidents.
 
 - **2026-10-16:** Fast path (user approved): CI builds `ghcr.io/developerzohaib786/agentika-backend:<sha>` (gha cache) and a new **docker-kind** Alternate Clouds service runs it (`acc services deploy --image`). Rollback = deploy the previous image tag (MCP `BACKEND_IMAGE`). Agents are Groq-first (gpt-oss-120b), Gemini fallback. Server deploy step only runs when server files change. Target: push → Slack button in ~3-4 min.
+
+- **2026-10-16:** Deleted the unused services `backend-vm` (failed option-B VM; Akash 429s) and `cyber-burst-9105`. The only service left is `alternate-silent-dust-5778-github` (cmvay3rjk01k19u1rqgzm1z1q), now set to image `ghcr.io/developerzohaib786/agentika-backend:6f0ae1d`. It's stopped after the CI deploy; needs a Redeploy.
 
 ## Next steps
 1. Test one real `acc services rebuild` (ACC_DRY_RUN=false), then keep it off until the demo.
