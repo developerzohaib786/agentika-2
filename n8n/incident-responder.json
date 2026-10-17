@@ -390,7 +390,7 @@
       "type": "n8n-nodes-base.slack",
       "typeVersion": 2.3,
       "position": [
-        2120,
+        2480,
         300
       ],
       "parameters": {
@@ -479,7 +479,7 @@
           "mode": "id",
           "value": "C0C9NB3RBS5"
         },
-        "text": "=:no_entry: *{{ $('Normalize Alert').first().json.id }}*: rollback rejected (or timed out). <!here> escalating to on-call.\nFix PR for review: {{ $('Parse RCA').first().json.pr_url }}",
+        "text": "=:no_entry: *{{ $('Normalize Alert').first().json.id }}*: rollback rejected (or timed out). <!here> escalating to on-call.\nFix PR for review: {{ $('Resolve Fix PR').first().json.pr_url }}",
         "otherOptions": {
           "includeLinkToWorkflow": true
         }
@@ -587,7 +587,7 @@
           "mode": "id",
           "value": "C0C9NB3RBS5"
         },
-        "text": "=:white_check_mark: *{{ $('Normalize Alert').first().json.id }}* resolved. Backend rolled back to `{{ ($('Parse RCA').first().json.rollback_sha ?? '').slice(0, 7) }}` and `/health` is ok ({{ $json.checks.length }} checks).\nNext: review and merge the fix PR {{ $('Parse RCA').first().json.pr_url }}",
+        "text": "=:white_check_mark: *{{ $('Normalize Alert').first().json.id }}* resolved. Backend rolled back to `{{ ($('Parse RCA').first().json.rollback_sha ?? '').slice(0, 7) }}` and `/health` is ok ({{ $json.checks.length }} checks).\nNext: review and merge the fix PR {{ $('Resolve Fix PR').first().json.pr_url }}",
         "otherOptions": {
           "includeLinkToWorkflow": true
         }
@@ -615,7 +615,7 @@
           "mode": "id",
           "value": "C0C9NB3RBS5"
         },
-        "text": "=:fire: *{{ $('Normalize Alert').first().json.id }}*: {{ $json.dryRun ? '*DRY RUN*: rollback approved but not executed (ACC_DRY_RUN=true). Would run: `' + $json.rollback.command + '`' : $json.rollbackError ? 'rollback failed: ' + $json.rollbackError : 'rollback did not restore health after ' + $json.checks.length + ' checks. Last: `' + JSON.stringify($json.checks.at(-1)) + '`' }}\n<!here> escalating to on-call. Fix PR: {{ $('Parse RCA').first().json.pr_url }}",
+        "text": "=:fire: *{{ $('Normalize Alert').first().json.id }}*: {{ $json.dryRun ? '*DRY RUN*: rollback approved but not executed (ACC_DRY_RUN=true). Would run: `' + $json.rollback.command + '`' : $json.rollbackError ? 'rollback failed: ' + $json.rollbackError : 'rollback did not restore health after ' + $json.checks.length + ' checks. Last: `' + JSON.stringify($json.checks.at(-1)) + '`' }}\n<!here> escalating to on-call. Fix PR: {{ $('Resolve Fix PR').first().json.pr_url }}",
         "otherOptions": {
           "includeLinkToWorkflow": true
         }
@@ -718,6 +718,115 @@
           "id": "sMw22aqi11BloYCd",
           "name": "Azure Open AI account"
         }
+      }
+    },
+    {
+      "id": "7c1d2e90-4a51-4b6e-9f10-0a1b2c3d4e01",
+      "name": "Create Fix PR",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2000,
+        300
+      ],
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true,
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.github.com/repos/{{ $env.GITHUB_REPO }}/pulls",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/vnd.github+json"
+            },
+            {
+              "name": "X-GitHub-Api-Version",
+              "value": "2022-11-28"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ title: '[' + $('Normalize Alert').first().json.id + '] ' + ($('Parse RCA').first().json.fix_summary || 'Automated fix'), head: \"{{ $('Parse RCA').first().json.branch || ('fix/' + $('Normalize Alert').first().json.id.toLowerCase()) }}\", base: 'main', body: 'Automated fix for ' + $('Normalize Alert').first().json.id + '.\n\nRoot cause: ' + ($('Parse RCA').first().json.root_cause || 'n/a') + '\n\nOpened by the n8n incident responder.' }) }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "agGithubMcp00001",
+          "name": "GitHub MCP (PAT)"
+        }
+      }
+    },
+    {
+      "id": "7c1d2e90-4a51-4b6e-9f10-0a1b2c3d4e02",
+      "name": "Find Fix PR",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2060,
+        300
+      ],
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true,
+      "parameters": {
+        "method": "GET",
+        "url": "=https://api.github.com/repos/{{ $env.GITHUB_REPO }}/pulls",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "state",
+              "value": "open"
+            },
+            {
+              "name": "head",
+              "value": "{{ $env.GITHUB_REPO.split('/')[0] }}:{{ $('Parse RCA').first().json.branch || ('fix/' + $('Normalize Alert').first().json.id.toLowerCase()) }}"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/vnd.github+json"
+            },
+            {
+              "name": "X-GitHub-Api-Version",
+              "value": "2022-11-28"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "agGithubMcp00001",
+          "name": "GitHub MCP (PAT)"
+        }
+      }
+    },
+    {
+      "id": "7c1d2e90-4a51-4b6e-9f10-0a1b2c3d4e03",
+      "name": "Resolve Fix PR",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2120,
+        300
+      ],
+      "parameters": {
+        "jsCode": "// The agent's pr_url is not trustworthy; use the PR that really exists on GitHub.\nconst rca = $('Parse RCA').first().json;\nconst found = $('Find Fix PR').all().map(i => i.json).find(j => j && j.html_url && j.number);\nconst created = $('Create Fix PR').first().json;\nconst pr = found || (created && created.html_url ? created : null);\nif (pr) return [{ json: { ...rca, pr_url: pr.html_url, pr_number: pr.number } }];\nreturn [{ json: { ...rca, pr_url: '_no PR was created (branch missing or token lacks Pull requests: write)_', pr_number: 0 } }];"
       }
     }
   ],
@@ -883,7 +992,7 @@
       "main": [
         [
           {
-            "node": "Slack: approve rollback?",
+            "node": "Create Fix PR",
             "type": "main",
             "index": 0
           }
@@ -987,6 +1096,39 @@
           {
             "node": "Root-cause Agent",
             "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Fix PR": {
+      "main": [
+        [
+          {
+            "node": "Find Fix PR",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Fix PR": {
+      "main": [
+        [
+          {
+            "node": "Resolve Fix PR",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resolve Fix PR": {
+      "main": [
+        [
+          {
+            "node": "Slack: approve rollback?",
+            "type": "main",
             "index": 0
           }
         ]
