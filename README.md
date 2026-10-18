@@ -150,6 +150,9 @@ Notes: custom domains aren't supported for services yet, so use the `*-app.alter
 - **Developer:** EC2, Docker, Caddy, backend (Alternate Clouds), Incident MCP, GitHub/Slack integrations.
 - **AI/Agent engineer:** agent prompts, n8n workflow, evals, demo script.
 
+## Credtis
+[DevoraCamp](https://devoracamp.com)
+
 ## Security
 - Secrets only in `.env` on the server or in n8n credentials. Never commit them.
 - Port 22 only from your IP; 80/443 public.
